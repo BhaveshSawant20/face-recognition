@@ -125,7 +125,6 @@ from supabase import create_client
 import tempfile
 import pytz
 
-# DeepFace logic
 from main import identify_person
 
 # ===============================
@@ -140,16 +139,6 @@ st.set_page_config(
 )
 
 st.title("🎯 AI Face Attendance System")
-
-# ===============================
-# SESSION STATE (Camera Reset Fix)
-# ===============================
-
-if "reset_register_camera" not in st.session_state:
-    st.session_state.reset_register_camera = False
-
-if "reset_attendance_camera" not in st.session_state:
-    st.session_state.reset_attendance_camera = False
 
 # ===============================
 # SUPABASE CONNECTION
@@ -182,56 +171,51 @@ if menu == "Register Face":
     st.header("📌 Register New Face")
 
     name_input = st.text_input("Enter Name")
+    image_buffer = st.camera_input("Capture Face", key="register_camera")
 
-    camera_key = "register_camera"
-    if st.session_state.reset_register_camera:
-        camera_key = "register_camera_reset"
+    if st.button("Register"):
 
-    image_buffer = st.camera_input("Capture Face", key=camera_key)
-
-    if st.session_state.reset_register_camera:
-        st.session_state.reset_register_camera = False
-
-    if image_buffer and name_input.strip():
-
-        name = name_input.strip().lower()
-
-        existing = supabase.table("faces_data") \
-            .select("*") \
-            .ilike("name", name) \
-            .execute()
-
-        if existing.data:
-            st.error("User already exists")
+        if not name_input.strip():
+            st.warning("Enter name first")
+        elif not image_buffer:
+            st.warning("Capture image first")
         else:
-            try:
-                image = Image.open(image_buffer).convert("RGB")
+            name = name_input.strip().lower()
 
-                with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
-                    image.save(tmp.name)
+            existing = supabase.table("faces_data") \
+                .select("*") \
+                .ilike("name", name) \
+                .execute()
 
-                    with open(tmp.name, "rb") as f:
-                        supabase.storage.from_("faces").upload(
-                            f"{name}.png",
-                            f,
-                            {
-                                "content-type": "image/png",
-                                "upsert": "true"
-                            }
-                        )
+            if existing.data:
+                st.error("User already exists")
+            else:
+                try:
+                    with st.spinner("Registering face..."):
+                        image = Image.open(image_buffer).convert("RGB")
 
-                supabase.table("faces_data").insert({
-                    "name": name
-                }).execute()
+                        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
+                            image.save(tmp.name)
 
-                st.success("✅ Face registered successfully!")
+                            with open(tmp.name, "rb") as f:
+                                supabase.storage.from_("faces").upload(
+                                    f"{name}.png",
+                                    f,
+                                    {
+                                        "content-type": "image/png",
+                                        "upsert": "true"
+                                    }
+                                )
 
-                # 🔥 Reset camera after success
-                st.session_state.reset_register_camera = True
-                st.rerun()
+                        supabase.table("faces_data").insert({
+                            "name": name
+                        }).execute()
 
-            except Exception as e:
-                st.error(f"Upload failed: {str(e)}")
+                    st.success("✅ Face registered successfully!")
+                    st.info("You can now switch to Mark Attendance")
+
+                except Exception as e:
+                    st.error(f"Upload failed: {str(e)}")
 
 # ===============================
 # MARK ATTENDANCE
@@ -241,77 +225,71 @@ if menu == "Mark Attendance":
 
     st.header("📝 Mark Attendance")
 
-    camera_key = "attendance_camera"
-    if st.session_state.reset_attendance_camera:
-        camera_key = "attendance_camera_reset"
+    image_buffer = st.camera_input("Capture Face", key="attendance_camera")
 
-    image_buffer = st.camera_input("Capture Face", key=camera_key)
+    if st.button("Mark Attendance"):
 
-    if st.session_state.reset_attendance_camera:
-        st.session_state.reset_attendance_camera = False
+        if not image_buffer:
+            st.warning("Capture image first")
+        else:
+            try:
+                with st.spinner("Recognizing face..."):
 
-    if image_buffer is not None:
+                    image = Image.open(image_buffer).convert("RGB")
 
-        try:
-            image = Image.open(image_buffer).convert("RGB")
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
+                        image.save(tmp.name)
+                        temp_path = tmp.name
 
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
-                image.save(tmp.name)
-                temp_path = tmp.name
+                    name, message = identify_person(temp_path)
 
-            name, message = identify_person(temp_path)
+                if name:
 
-            if name:
+                    ist = pytz.timezone("Asia/Kolkata")
+                    now = datetime.datetime.now(ist)
+                    current_time = now.time()
 
-                ist = pytz.timezone("Asia/Kolkata")
-                now = datetime.datetime.now(ist)
-                current_time = now.time()
+                    lecture_slots = {
+                        "Lecture 1": (datetime.time(9, 15), datetime.time(10, 15)),
+                        "Lecture 2": (datetime.time(10, 15), datetime.time(11, 15)),
+                        "Lecture 3": (datetime.time(11, 30), datetime.time(12, 30)),
+                        "Lecture 4": (datetime.time(12, 30), datetime.time(13, 30)),
+                        "Lecture 5": (datetime.time(14, 0), datetime.time(15, 0)),
+                        "Lecture 6": (datetime.time(15, 0), datetime.time(16, 0)),
+                    }
 
-                lecture_slots = {
-                    "Lecture 1": (datetime.time(9, 15), datetime.time(10, 15)),
-                    "Lecture 2": (datetime.time(10, 15), datetime.time(11, 15)),
-                    "Lecture 3": (datetime.time(11, 30), datetime.time(12, 30)),
-                    "Lecture 4": (datetime.time(12, 30), datetime.time(13, 30)),
-                    "Lecture 5": (datetime.time(14, 0), datetime.time(15, 0)),
-                    "Lecture 6": (datetime.time(15, 0), datetime.time(16, 0)),
-                }
+                    current_lecture = None
 
-                current_lecture = None
+                    for lec, (start, end) in lecture_slots.items():
+                        if start <= current_time < end:
+                            current_lecture = lec
+                            break
 
-                for lec, (start, end) in lecture_slots.items():
-                    if start <= current_time < end:
-                        current_lecture = lec
-                        break
-
-                if not current_lecture:
-                    st.warning("No active lecture currently")
-                else:
-                    existing = supabase.table("attendance") \
-                        .select("*") \
-                        .eq("name", name) \
-                        .eq("lecture", current_lecture) \
-                        .execute()
-
-                    if existing.data:
-                        st.warning("⚠ Attendance already marked")
+                    if not current_lecture:
+                        st.warning("No active lecture currently")
                     else:
-                        supabase.table("attendance").insert({
-                            "name": name,
-                            "lecture": current_lecture,
-                            "marked_at": now.isoformat()
-                        }).execute()
+                        existing = supabase.table("attendance") \
+                            .select("*") \
+                            .eq("name", name) \
+                            .eq("lecture", current_lecture) \
+                            .execute()
 
-                        st.success(f"✅ Attendance marked for {name}")
+                        if existing.data:
+                            st.warning("⚠ Attendance already marked")
+                        else:
+                            supabase.table("attendance").insert({
+                                "name": name,
+                                "lecture": current_lecture,
+                                "marked_at": now.isoformat()
+                            }).execute()
 
-                        # 🔥 Reset camera after marking
-                        st.session_state.reset_attendance_camera = True
-                        st.rerun()
+                            st.success(f"✅ Attendance marked for {name}")
 
-            else:
-                st.warning(message)
+                else:
+                    st.warning(message)
 
-        except Exception as e:
-            st.error(f"Recognition failed: {str(e)}")
+            except Exception as e:
+                st.error(f"Recognition failed: {str(e)}")
 
 # ===============================
 # VIEW ATTENDANCE
