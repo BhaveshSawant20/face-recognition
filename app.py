@@ -121,12 +121,10 @@ import os
 import datetime
 import pandas as pd
 import numpy as np
-from PIL import Image, ImageDraw
+from PIL import Image
 
 from dotenv import load_dotenv
 from supabase import create_client
-
-# ⭐ Light-weight AI recognition (Cloud safe)
 import mediapipe as mp
 
 # ===============================
@@ -182,7 +180,7 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # ===============================
-# MEDIA PIPE FACE EMBEDDING
+# FACE EMBEDDING USING MEDIA PIPE
 # ===============================
 
 mp_face = mp.solutions.face_mesh
@@ -192,7 +190,13 @@ def get_face_embedding(image_np):
     if len(image_np.shape) == 3 and image_np.shape[2] == 4:
         image_np = image_np[:, :, :3]
 
-    with mp_face.FaceMesh(static_image_mode=True) as face_mesh:
+    image_np = image_np.astype(np.float32) / 255.0
+
+    with mp_face.FaceMesh(
+        static_image_mode=True,
+        max_num_faces=1,
+        refine_landmarks=True
+    ) as face_mesh:
 
         results = face_mesh.process(image_np)
 
@@ -202,10 +206,14 @@ def get_face_embedding(image_np):
         embedding = []
 
         for lm in results.multi_face_landmarks[0].landmark:
-            embedding.append([lm.x, lm.y, lm.z])
+            embedding.extend([lm.x, lm.y, lm.z])
 
-        return np.array(embedding).flatten()
+        embedding = np.array(embedding)
 
+        # Normalize vector
+        embedding = embedding / np.linalg.norm(embedding)
+
+        return embedding
 
 # ===============================
 # SIDEBAR MENU
@@ -286,13 +294,12 @@ if menu == "Mark Attendance":
         best_name = None
         best_distance = float("inf")
 
-        draw = ImageDraw.Draw(image)
-
         for face in faces.data:
 
             stored_embedding = np.array(face["encoding"])
 
-            # Normalize dimension mismatch
+            stored_embedding = stored_embedding / np.linalg.norm(stored_embedding)
+
             stored_embedding = np.resize(stored_embedding, len(embedding))
 
             dist = np.linalg.norm(embedding - stored_embedding)
@@ -303,7 +310,7 @@ if menu == "Mark Attendance":
 
         st.image(image, caption="Detected Face")
 
-        if best_distance < 0.5 and best_name:
+        if best_distance < 0.6 and best_name:
 
             now = datetime.datetime.now().time()
 
@@ -354,7 +361,6 @@ if menu == "Mark Attendance":
 
         else:
             st.error("Face not recognized")
-
 
 # ===============================
 # VIEW ATTENDANCE

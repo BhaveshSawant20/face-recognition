@@ -170,7 +170,6 @@ import numpy as np
 import os
 from supabase import create_client
 import mediapipe as mp
-from PIL import Image
 
 # ===============================
 # SUPABASE CLIENT
@@ -181,11 +180,14 @@ def get_supabase_client():
     supabase_url = os.getenv("SUPABASE_URL")
     supabase_key = os.getenv("SUPABASE_KEY")
 
+    if not supabase_url or not supabase_key:
+        raise Exception("Supabase credentials missing")
+
     return create_client(supabase_url, supabase_key)
 
 
 # ===============================
-# MEDIA PIPE FACE MESH
+# MEDIA PIPE FACE EMBEDDING
 # ===============================
 
 mp_face = mp.solutions.face_mesh
@@ -195,9 +197,13 @@ def extract_face_embedding(image_np):
     if len(image_np.shape) == 3 and image_np.shape[2] == 4:
         image_np = image_np[:, :, :3]
 
+    # Normalize image
+    image_np = image_np.astype(np.float32) / 255.0
+
     with mp_face.FaceMesh(
         static_image_mode=True,
-        max_num_faces=1
+        max_num_faces=1,
+        refine_landmarks=True
     ) as face_mesh:
 
         results = face_mesh.process(image_np)
@@ -205,13 +211,17 @@ def extract_face_embedding(image_np):
         if not results.multi_face_landmarks:
             return None
 
-        # Use facial landmark coordinates as embedding
         landmarks = []
 
         for lm in results.multi_face_landmarks[0].landmark:
-            landmarks.append([lm.x, lm.y, lm.z])
+            landmarks.extend([lm.x, lm.y, lm.z])
 
-        return np.array(landmarks).flatten()
+        embedding = np.array(landmarks)
+
+        # Normalize embedding (VERY IMPORTANT)
+        embedding = embedding / np.linalg.norm(embedding)
+
+        return embedding
 
 
 # ===============================
@@ -236,7 +246,7 @@ def load_known_faces():
 
 
 # ===============================
-# RECOGNITION
+# FACE RECOGNITION
 # ===============================
 
 def recognize_face(image_np):
@@ -256,6 +266,12 @@ def recognize_face(image_np):
 
     for enc, name in zip(known_encodings, known_names):
 
+        enc = np.array(enc)
+
+        # Normalize database embedding
+        enc = enc / np.linalg.norm(enc)
+
+        # Match dimension safely
         enc = np.resize(enc, len(embedding))
 
         dist = np.linalg.norm(embedding - enc)
@@ -264,7 +280,9 @@ def recognize_face(image_np):
             best_distance = dist
             best_name = name
 
-    if best_distance < 0.5:
-        return f"Welcome {best_name}"
+    # ⭐ Better threshold for mini project demo
+    if best_distance < 0.6:
+        confidence = round((1 - best_distance) * 100, 2)
+        return f"Welcome {best_name} ({confidence}% confidence)"
 
     return "Face not recognized"
