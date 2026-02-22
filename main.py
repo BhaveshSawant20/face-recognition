@@ -169,7 +169,6 @@
 import numpy as np
 import os
 from supabase import create_client
-import cv2
 import mediapipe as mp
 
 
@@ -178,37 +177,39 @@ import mediapipe as mp
 # ===============================
 
 def get_supabase_client():
+
     supabase_url = os.getenv("SUPABASE_URL")
     supabase_key = os.getenv("SUPABASE_KEY")
 
     if not supabase_url or not supabase_key:
-        raise ValueError("Supabase env variables missing")
+        raise ValueError("Supabase environment variables not set")
 
     return create_client(supabase_url, supabase_key)
 
 
 # ===============================
-# FACE DETECTION
+# FACE DETECTION (MEDIAPIPE)
 # ===============================
-
-mp_face = mp.solutions.face_detection
-
 
 def detect_face(image_np):
+
+    mp_face = mp.solutions.face_detection
+
     with mp_face.FaceDetection(
-            model_selection=1,
-            min_detection_confidence=0.5
+        model_selection=1,
+        min_detection_confidence=0.5
     ) as detector:
 
-        results = detector.process(
-            cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR)
-        )
+        results = detector.process(image_np)
 
-        return results.detections if results.detections else []
+        if results.detections:
+            return True
+
+    return False
 
 
 # ===============================
-# LOAD FACES
+# LOAD FACES FROM DATABASE
 # ===============================
 
 def load_known_faces():
@@ -229,7 +230,7 @@ def load_known_faces():
 
 
 # ===============================
-# FACE RECOGNITION (Better Logic)
+# FACE RECOGNITION
 # ===============================
 
 def recognize_face(image_np):
@@ -239,21 +240,25 @@ def recognize_face(image_np):
     if len(known_encodings) == 0:
         return "No registered faces"
 
-    detections = detect_face(image_np)
-
-    if not detections:
+    if not detect_face(image_np):
         return "No face detected"
 
-    # Better embedding approximation (not perfect but safer)
-    face_vector = cv2.resize(image_np, (32, 32)).flatten()
+    # Cloud safe embedding approximation
+    resized = np.array(
+        __import__("PIL.Image").Image.fromarray(image_np)
+        .resize((32, 32))
+    )
+
+    face_vector = resized.flatten().astype(float)
     face_vector = face_vector / 255.0
 
     distances = []
 
     for enc in known_encodings:
-        enc = np.array(enc)
 
-        # Normalize dimension mismatch safety
+        enc = np.array(enc).astype(float)
+
+        # Normalize size mismatch
         if len(enc) != len(face_vector):
             enc = np.resize(enc, len(face_vector))
 
@@ -261,7 +266,8 @@ def recognize_face(image_np):
 
     best_index = int(np.argmin(distances))
 
-    if distances[best_index] < 30:
+    # Threshold tuning
+    if distances[best_index] < 35:
         return f"Welcome {known_names[best_index]}"
 
     return "Face not recognized"
