@@ -116,17 +116,16 @@
 #             run_attendance_frame(frame_placeholder)
 
 import streamlit as st
-import base64
 import os
 import datetime
 import pandas as pd
-import numpy as np
 from PIL import Image
 from dotenv import load_dotenv
 from supabase import create_client
 import tempfile
+import pytz
 
-# DeepFace logic from main.py
+# DeepFace logic
 from main import identify_person
 
 # ===============================
@@ -186,28 +185,31 @@ if menu == "Register Face":
 
         if existing.data:
             st.error("User already exists")
-
         else:
-            # Save image temporarily
-            image = Image.open(image_buffer).convert("RGB")
+            try:
+                image = Image.open(image_buffer).convert("RGB")
 
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
-                image.save(tmp.name)
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
+                    image.save(tmp.name)
 
-                # Upload to Supabase Storage bucket
-                with open(tmp.name, "rb") as f:
-                    supabase.storage.from_("faces").upload(
-                        f"{name}.png",
-                        f,
-                        {"content-type": "image/png"}
-                    )
+                    with open(tmp.name, "rb") as f:
+                        supabase.storage.from_("faces").upload(
+                            f"{name}.png",
+                            f,
+                            {
+                                "content-type": "image/png",
+                                "upsert": "true"  # Prevent duplicate error
+                            }
+                        )
 
-            # Save only name in table
-            supabase.table("faces_data").insert({
-                "name": name
-            }).execute()
+                supabase.table("faces_data").insert({
+                    "name": name
+                }).execute()
 
-            st.success("✅ Face registered successfully!")
+                st.success("✅ Face registered successfully!")
+
+            except Exception as e:
+                st.error(f"Upload failed: {str(e)}")
 
 # ===============================
 # MARK ATTENDANCE
@@ -221,64 +223,62 @@ if menu == "Mark Attendance":
 
     if image_buffer is not None:
 
-        image = Image.open(image_buffer).convert("RGB")
+        try:
+            image = Image.open(image_buffer).convert("RGB")
 
-        # Save temp image
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
-            image.save(tmp.name)
-            temp_path = tmp.name
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
+                image.save(tmp.name)
+                temp_path = tmp.name
 
-        # Identify using DeepFace (from main.py)
-        name, message = identify_person(temp_path)
+            name, message = identify_person(temp_path)
 
-        if name:
+            if name:
 
-            import pytz
+                ist = pytz.timezone("Asia/Kolkata")
+                now = datetime.datetime.now(ist)
+                current_time = now.time()
 
-            ist = pytz.timezone("Asia/Kolkata")
-            now = datetime.datetime.now(ist)
-            current_time = now.time()
+                lecture_slots = {
+                    "Lecture 1": (datetime.time(9, 15), datetime.time(10, 15)),
+                    "Lecture 2": (datetime.time(10, 15), datetime.time(11, 15)),
+                    "Lecture 3": (datetime.time(11, 30), datetime.time(12, 30)),
+                    "Lecture 4": (datetime.time(12, 30), datetime.time(13, 30)),
+                    "Lecture 5": (datetime.time(14, 0), datetime.time(15, 0)),
+                    "Lecture 6": (datetime.time(15, 0), datetime.time(16, 0)),
+                }
 
-            lecture_slots = {
-                "Lecture 1": (datetime.time(9, 15), datetime.time(10, 15)),
-                "Lecture 2": (datetime.time(10, 15), datetime.time(11, 15)),
-                "Lecture 3": (datetime.time(11, 30), datetime.time(12, 30)),
-                "Lecture 4": (datetime.time(12, 30), datetime.time(13, 30)),
-                "Lecture 5": (datetime.time(14, 0), datetime.time(15, 0)),
-                "Lecture 6": (datetime.time(15, 0), datetime.time(16, 0)),
-            }
+                current_lecture = None
 
-            current_lecture = None
+                for lec, (start, end) in lecture_slots.items():
+                    if start <= current_time < end:
+                        current_lecture = lec
+                        break
 
-            for lec, (start, end) in lecture_slots.items():
-                if start <= current_time < end:
-                    current_lecture = lec
-                    break
+                if not current_lecture:
+                    st.warning("No active lecture currently")
+                else:
+                    existing = supabase.table("attendance") \
+                        .select("*") \
+                        .eq("name", name) \
+                        .eq("lecture", current_lecture) \
+                        .execute()
 
-            if not current_lecture:
-                st.warning("No active lecture currently")
+                    if existing.data:
+                        st.warning("⚠ Attendance already marked")
+                    else:
+                        supabase.table("attendance").insert({
+                            "name": name,
+                            "lecture": current_lecture,
+                            "marked_at": now.isoformat()
+                        }).execute()
+
+                        st.success(f"✅ Attendance marked for {name}")
 
             else:
-                existing = supabase.table("attendance") \
-                    .select("*") \
-                    .eq("name", name) \
-                    .eq("lecture", current_lecture) \
-                    .execute()
+                st.warning(message)
 
-                if existing.data:
-                    st.warning("⚠ Attendance already marked")
-
-                else:
-                    supabase.table("attendance").insert({
-                        "name": name,
-                        "lecture": current_lecture,
-                        "marked_at": now.isoformat()
-                    }).execute()
-
-                    st.success(f"✅ Attendance marked for {name}")
-
-        else:
-            st.warning(message)
+        except Exception as e:
+            st.error(f"Recognition failed: {str(e)}")
 
 # ===============================
 # VIEW ATTENDANCE
