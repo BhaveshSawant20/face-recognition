@@ -122,10 +122,11 @@ import datetime
 import pandas as pd
 import numpy as np
 from PIL import Image
-
 from dotenv import load_dotenv
 from supabase import create_client
-import mediapipe as mp
+
+# Recognition logic
+from main import recognize_face
 
 # ===============================
 # CONFIG
@@ -134,7 +135,7 @@ import mediapipe as mp
 load_dotenv()
 
 st.set_page_config(
-    page_title="AI Face Attendance",
+    page_title="AI Attendance System",
     layout="centered"
 )
 
@@ -166,87 +167,30 @@ def set_background(image_path):
 
 set_background("background.png")
 
+
 # ===============================
-# SUPABASE
+# SUPABASE CONNECTION
 # ===============================
 
-SUPABASE_URL = st.secrets["SUPABASE_URL"]
-SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+
+if not SUPABASE_URL or not SUPABASE_KEY:
+    st.error("Supabase environment variables missing")
+    st.stop()
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# ===============================
-# FACE EMBEDDING
-# ===============================
-
-mp_face = mp.solutions.face_mesh
-
-def get_embedding(image_np):
-
-    if len(image_np.shape) == 3 and image_np.shape[2] == 4:
-        image_np = image_np[:, :, :3]
-
-    image_np = image_np.astype(np.uint8)
-
-    with mp_face.FaceMesh(
-        static_image_mode=True,
-        max_num_faces=1,
-        refine_landmarks=True
-    ) as face_mesh:
-
-        results = face_mesh.process(image_np)
-
-        if not results.multi_face_landmarks:
-            return None
-
-        emb = []
-
-        for lm in results.multi_face_landmarks[0].landmark:
-            emb.extend([lm.x, lm.y, lm.z])
-
-        emb = np.array(emb)
-
-        norm = np.linalg.norm(emb)
-        if norm != 0:
-            emb = emb / norm
-
-        return emb
-
 
 # ===============================
-# CACHE DATABASE FACES
-# ===============================
-
-def get_cached_faces():
-
-    if "faces_cache" not in st.session_state:
-        st.session_state.faces_cache = None
-        st.session_state.last_refresh = None
-
-    now = datetime.datetime.now()
-
-    if (
-        st.session_state.faces_cache is None
-        or st.session_state.last_refresh is None
-        or (now - st.session_state.last_refresh).seconds > 60
-    ):
-
-        res = supabase.table("faces_data").select("*").execute()
-
-        st.session_state.faces_cache = res.data
-        st.session_state.last_refresh = now
-
-    return st.session_state.faces_cache
-
-
-# ===============================
-# MENU
+# SIDEBAR MENU
 # ===============================
 
 menu = st.sidebar.selectbox(
     "Choose Mode",
-    ["Register Face", "Mark Attendance", "View Attendance"]
+    ["Register Face", "Recognize Face", "View Attendance"]
 )
+
 
 # ===============================
 # REGISTER FACE
@@ -254,89 +198,61 @@ menu = st.sidebar.selectbox(
 
 if menu == "Register Face":
 
-    st.header("📌 Register Face")
+    st.header("📌 Register New Face")
 
     name_input = st.text_input("Enter Name")
-    img_buffer = st.camera_input("Capture Face")
+    image_buffer = st.camera_input("Capture Face")
 
-    if img_buffer and name_input.strip():
+    if image_buffer and name_input.strip():
 
         name = name_input.strip().lower()
 
-        existing = supabase.table("faces_data")\
-            .select("*")\
-            .ilike("name", name)\
+        # Duplicate check
+        existing = supabase.table("faces_data") \
+            .select("*") \
+            .ilike("name", name) \
             .execute()
 
         if existing.data:
             st.error("User already exists")
 
         else:
-            image = Image.open(img_buffer).convert("RGB")
-            img_np = np.array(image)
+            image = Image.open(image_buffer).convert("RGB")
+            image_np = np.array(image)
 
-            emb = get_embedding(img_np)
-
-            if emb is None:
-                st.error("No face detected")
-                st.stop()
+            face_vector = np.mean(
+                np.array(image.resize((32,32))),
+                axis=(0,1)
+            )
 
             supabase.table("faces_data").insert({
                 "name": name,
-                "encoding": emb.tolist()
+                "encoding": face_vector.tolist()
             }).execute()
 
-            st.success("✅ Face registered!")
+            st.success("✅ Face registered successfully!")
+
 
 # ===============================
-# MARK ATTENDANCE
+# RECOGNITION + ATTENDANCE
 # ===============================
 
-if menu == "Mark Attendance":
+if menu == "Recognize Face":
 
-    st.header("🔍 Mark Attendance")
+    st.header("🔍 Face Recognition")
 
-    img_buffer = st.camera_input("Capture Face")
+    image_buffer = st.camera_input("Capture Face")
 
-    if img_buffer:
+    if image_buffer is not None:
 
-        image = Image.open(img_buffer).convert("RGB")
-        img_np = np.array(image)
+        image = Image.open(image_buffer).convert("RGB")
+        image_np = np.array(image)
 
-        emb = get_embedding(img_np)
+        result = recognize_face(image_np)
 
-        if emb is None:
-            st.warning("No face detected")
-            st.stop()
+        if "Welcome" in result:
 
-        faces = get_cached_faces()
-
-        if not faces:
-            st.warning("No registered faces")
-            st.stop()
-
-        best_name = None
-        best_dist = float("inf")
-
-        for face in faces:
-
-            stored = np.array(face["encoding"])
-
-            if len(stored) != len(emb):
-                continue
-
-            stored = stored / np.linalg.norm(stored)
-
-            dist = np.linalg.norm(emb - stored)
-
-            if dist < best_dist:
-                best_dist = dist
-                best_name = face["name"]
-
-        st.image(image, caption="Detected Face")
-
-        if best_dist < 0.6 and best_name:
-
+            name = result.replace("Welcome", "").strip().lower()
             now = datetime.datetime.now().time()
 
             lecture_slots = {
@@ -356,14 +272,14 @@ if menu == "Mark Attendance":
                     break
 
             if not current_lecture:
-                st.warning("No active lecture")
+                st.warning("No active lecture currently")
 
             else:
 
-                existing = supabase.table("attendance")\
-                    .select("*")\
-                    .eq("name", best_name)\
-                    .eq("lecture", current_lecture)\
+                existing = supabase.table("attendance") \
+                    .select("*") \
+                    .eq("name", name) \
+                    .eq("lecture", current_lecture) \
                     .execute()
 
                 if existing.data:
@@ -371,24 +287,16 @@ if menu == "Mark Attendance":
 
                 else:
                     supabase.table("attendance").insert({
-                        "name": best_name,
+                        "name": name,
                         "lecture": current_lecture,
                         "marked_at": datetime.datetime.now().isoformat()
                     }).execute()
 
-                    confidence = max(
-                        0,
-                        (0.6 - best_dist) / 0.6 * 100
-                    )
-
-                    st.success(f"""
-                    ✅ Attendance Marked
-                    Name: {best_name}
-                    Confidence: {round(confidence,2)}%
-                    """)
+                    st.success(f"Attendance marked for {name}")
 
         else:
-            st.error("Face not recognized")
+            st.warning(result)
+
 
 # ===============================
 # VIEW ATTENDANCE
@@ -398,9 +306,9 @@ if menu == "View Attendance":
 
     st.header("📊 Attendance Records")
 
-    data = supabase.table("attendance")\
-        .select("*")\
-        .order("marked_at", desc=True)\
+    data = supabase.table("attendance") \
+        .select("*") \
+        .order("marked_at", desc=True) \
         .execute()
 
     if data.data:

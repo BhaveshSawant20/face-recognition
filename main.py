@@ -170,6 +170,8 @@ import numpy as np
 import os
 from supabase import create_client
 import mediapipe as mp
+from PIL import Image
+
 
 # ===============================
 # SUPABASE CLIENT
@@ -181,53 +183,35 @@ def get_supabase_client():
     supabase_key = os.getenv("SUPABASE_KEY")
 
     if not supabase_url or not supabase_key:
-        raise Exception("Supabase credentials missing")
+        raise ValueError("Supabase environment variables not set")
 
     return create_client(supabase_url, supabase_key)
 
 
 # ===============================
-# MEDIA PIPE FACE EMBEDDING
+# FACE DETECTION (MEDIAPIPE)
 # ===============================
 
-mp_face = mp.solutions.face_mesh
+def detect_face(image_np):
 
+    mp_face = mp.solutions.face_detection
 
-def extract_face_embedding(image_np):
-
+    # Convert to RGB if needed
     if len(image_np.shape) == 3 and image_np.shape[2] == 4:
         image_np = image_np[:, :, :3]
 
-    image_np = image_np.astype(np.uint8)
+    with mp_face.FaceDetection(
+        model_selection=1,
+        min_detection_confidence=0.5
+    ) as detector:
 
-    with mp_face.FaceMesh(
-        static_image_mode=True,
-        max_num_faces=1,
-        refine_landmarks=True
-    ) as face_mesh:
+        results = detector.process(image_np)
 
-        results = face_mesh.process(image_np)
-
-        if not results.multi_face_landmarks:
-            return None
-
-        landmarks = []
-
-        for lm in results.multi_face_landmarks[0].landmark:
-            landmarks.extend([lm.x, lm.y, lm.z])
-
-        embedding = np.array(landmarks)
-
-        # Safe normalization
-        norm = np.linalg.norm(embedding)
-        if norm != 0:
-            embedding = embedding / norm
-
-        return embedding
+        return bool(results.detections)
 
 
 # ===============================
-# LOAD DATABASE FACES
+# LOAD FACES
 # ===============================
 
 def load_known_faces():
@@ -240,8 +224,12 @@ def load_known_faces():
     names = []
 
     if response.data:
+
         for row in response.data:
-            encodings.append(np.array(row["encoding"]))
+
+            enc = np.array(row["encoding"], dtype=float)
+
+            encodings.append(enc)
             names.append(row["name"])
 
     return encodings, names
@@ -258,36 +246,32 @@ def recognize_face(image_np):
     if len(known_encodings) == 0:
         return "No registered faces"
 
-    embedding = extract_face_embedding(image_np)
-
-    if embedding is None:
+    if not detect_face(image_np):
         return "No face detected"
 
-    best_distance = float("inf")
-    best_name = None
+    # Cloud friendly embedding approximation
+    pil_img = Image.fromarray(image_np).convert("RGB")
+    resized = pil_img.resize((32, 32))
 
-    for enc, name in zip(known_encodings, known_names):
+    face_vector = np.array(resized).flatten().astype(float)
+    face_vector = face_vector / 255.0
 
-        enc = np.array(enc)
+    distances = []
 
-        # Safe normalization
-        norm = np.linalg.norm(enc)
-        if norm != 0:
-            enc = enc / norm
+    for enc in known_encodings:
 
-        # Skip if dimension mismatch
-        if len(enc) != len(embedding):
-            continue
+        enc = np.array(enc, dtype=float)
 
-        dist = np.linalg.norm(embedding - enc)
+        # Normalize dimension mismatch
+        if len(enc) != len(face_vector):
+            enc = np.resize(enc, len(face_vector))
 
-        if dist < best_distance:
-            best_distance = dist
-            best_name = name
+        distances.append(np.linalg.norm(face_vector - enc))
 
-    # Threshold matching
-    if best_distance < 0.6:
-        confidence = max(0, (0.6 - best_distance) / 0.6 * 100)
-        return f"Welcome {best_name} ({round(confidence,2)}% confidence)"
+    best_index = int(np.argmin(distances))
+
+    # Better threshold
+    if distances[best_index] < 30:
+        return f"Welcome {known_names[best_index]}"
 
     return "Face not recognized"
