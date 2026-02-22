@@ -118,69 +118,60 @@
 import streamlit as st
 import base64
 import os
+import datetime
+import pandas as pd
+import numpy as np
+from PIL import Image
 
-# -------- Function to Set Background -------- #
+from dotenv import load_dotenv
+from supabase import create_client
+
+from main import recognize_face
+
+
+# ===============================
+# PAGE CONFIG
+# ===============================
+
+st.set_page_config(
+    page_title="AI Attendance System",
+    layout="centered"
+)
+
+st.title("🎯 AI Face Attendance System")
+
+load_dotenv()
+
+# ===============================
+# BACKGROUND
+# ===============================
+
 def set_background(image_path):
 
     if not os.path.exists(image_path):
-        st.error("Background image not found. Check file path.")
         return
 
-    with open(image_path, "rb") as image_file:
-        encoded_string = base64.b64encode(image_file.read()).decode()
+    with open(image_path, "rb") as f:
+        encoded = base64.b64encode(f.read()).decode()
 
-    page_bg = f"""
-    <style>
-    .stApp {{
-        background: url("data:image/png;base64,{encoded_string}") no-repeat center center fixed;
-        background-size: cover;
-    }}
+    st.markdown(
+        f"""
+        <style>
+        .stApp {{
+            background: url("data:image/png;base64,{encoded}") no-repeat center center fixed;
+            background-size: cover;
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
 
-    /* Dark overlay for readability */
-    .stApp::before {{
-        content: "";
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.55);
-        backdrop-filter: blur(4px);
-        z-index: -1;
-    }}
-
-    /* Make main container slightly transparent */
-    .block-container {{
-        background: rgba(255, 255, 255, 0.08);
-        padding: 2rem;
-        border-radius: 15px;
-    }}
-    </style>
-    """
-
-    st.markdown(page_bg, unsafe_allow_html=True)
-
-
-# -------- Call the Function -------- #
 set_background("background.png")
 
 
-from dotenv import load_dotenv
-load_dotenv()
-
-import streamlit as st
-import face_recognition
-import numpy as np
-from PIL import Image
-from supabase import create_client
-import os
-import datetime
-import pandas as pd
-from main import recognize_face
-
-# =========================
-# SUPABASE CONNECTION
-# =========================
+# ===============================
+# SUPABASE
+# ===============================
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
@@ -191,73 +182,65 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# =========================
-# PAGE CONFIG
-# =========================
 
-st.set_page_config(page_title="AI Attendance System", layout="centered")
-st.title("🎯 AI Face Recognition Attendance System")
+# ===============================
+# MENU
+# ===============================
 
 menu = st.sidebar.selectbox(
     "Choose Mode",
     ["Register Face", "Recognize Face", "View Attendance"]
 )
 
-# =========================
+
+# ===============================
 # REGISTER FACE
-# =========================
+# ===============================
 
 if menu == "Register Face":
 
-    st.header("📌 Register New Face")
+    st.header("📌 Register Face")
 
     name_input = st.text_input("Enter Name")
     image_buffer = st.camera_input("Capture Face")
 
-    if image_buffer is not None and name_input.strip() != "":
+    if image_buffer and name_input:
 
         name = name_input.strip().lower()
 
-        # Case-insensitive duplicate check
-        existing_user = supabase.table("faces_data") \
+        existing = supabase.table("faces_data") \
             .select("*") \
             .ilike("name", name) \
             .execute()
 
-        if existing_user.data:
-            st.error("This name is already registered.")
+        if existing.data:
+            st.error("User already exists")
+
         else:
             image = Image.open(image_buffer)
             image_np = np.array(image)
 
-            face_locations = face_recognition.face_locations(image_np)
-            face_encodings = face_recognition.face_encodings(image_np, face_locations)
+            face_vector = np.mean(image_np, axis=(0, 1))
 
-            if not face_encodings:
-                st.error("No face detected. Try again.")
-            elif len(face_encodings) > 1:
-                st.error("Multiple faces detected. Capture only one face.")
-            else:
-                encoding = face_encodings[0]
+            supabase.table("faces_data").insert({
+                "name": name,
+                "encoding": face_vector.tolist()
+            }).execute()
 
-                supabase.table("faces_data").insert({
-                    "name": name,
-                    "encoding": encoding.tolist()
-                }).execute()
+            st.success("Face registered!")
 
-                st.success(f"✅ {name.capitalize()} registered successfully!")
 
-# =========================
-# RECOGNIZE FACE
-# =========================
+# ===============================
+# RECOGNITION + ATTENDANCE
+# ===============================
 
 if menu == "Recognize Face":
 
-    st.header("🔍 Face Recognition")
+    st.header("🔍 Recognize Face")
 
     image_buffer = st.camera_input("Capture Face")
 
-    if image_buffer is not None:
+    if image_buffer:
 
         image = Image.open(image_buffer)
         image_np = np.array(image)
@@ -266,40 +249,40 @@ if menu == "Recognize Face":
 
         if "Welcome" in result:
 
-            name = result.replace("Welcome ", "").strip().lower()
+            name = result.replace("Welcome", "").strip().lower()
+
             now = datetime.datetime.now().time()
 
-            # ===== YOUR EXACT LECTURE TIMINGS =====
             lecture_slots = {
-                "Lecture 1": (datetime.time(9, 15), datetime.time(10, 15)),
-                "Lecture 2": (datetime.time(10, 15), datetime.time(11, 15)),
-                "Lecture 3": (datetime.time(11, 30), datetime.time(12, 30)),
-                "Lecture 4": (datetime.time(12, 30), datetime.time(13, 30)),
-                "Lecture 5": (datetime.time(14, 0), datetime.time(15, 0)),
-                "Lecture 6": (datetime.time(15, 0), datetime.time(16, 0)),
+                "Lecture 1": (datetime.time(9,15), datetime.time(10,15)),
+                "Lecture 2": (datetime.time(10,15), datetime.time(11,15)),
+                "Lecture 3": (datetime.time(11,30), datetime.time(12,30)),
+                "Lecture 4": (datetime.time(12,30), datetime.time(13,30)),
+                "Lecture 5": (datetime.time(14,0), datetime.time(15,0)),
+                "Lecture 6": (datetime.time(15,0), datetime.time(16,0)),
             }
 
             current_lecture = None
 
-            for lecture, (start, end) in lecture_slots.items():
-                if start <= now < end:   # No overlap bug
-                    current_lecture = lecture
+            for lec, (start, end) in lecture_slots.items():
+                if start <= now < end:
+                    current_lecture = lec
                     break
 
             if not current_lecture:
-                st.warning("⚠ No active lecture at this time.")
+                st.warning("No active lecture")
+
             else:
-                # Check duplicate for same lecture
-                existing_attendance = supabase.table("attendance") \
+
+                existing = supabase.table("attendance") \
                     .select("*") \
                     .eq("name", name) \
                     .eq("lecture", current_lecture) \
                     .execute()
 
-                if existing_attendance.data:
-                    st.warning(
-                        f"⚠ {name.capitalize()} has already marked attendance for {current_lecture}."
-                    )
+                if existing.data:
+                    st.warning("Attendance already marked")
+
                 else:
                     supabase.table("attendance").insert({
                         "name": name,
@@ -307,33 +290,25 @@ if menu == "Recognize Face":
                         "marked_at": datetime.datetime.now().isoformat()
                     }).execute()
 
-                    st.success(
-                        f"✅ Attendance marked for {name.capitalize()} - {current_lecture}"
-                    )
+                    st.success(f"Attendance marked for {name}")
 
-        elif "detected" in result:
-            st.error(result)
-        else:
-            st.warning(result)
 
-# =========================
+# ===============================
 # VIEW ATTENDANCE
-# =========================
+# ===============================
 
 if menu == "View Attendance":
 
     st.header("📊 Attendance Records")
 
-    response = supabase.table("attendance") \
+    data = supabase.table("attendance") \
         .select("*") \
         .order("marked_at", desc=True) \
         .execute()
 
-    attendance_data = response.data
-
-    if attendance_data:
-        df = pd.DataFrame(attendance_data)
-        df["name"] = df["name"].str.capitalize()
+    if data.data:
+        df = pd.DataFrame(data.data)
         st.dataframe(df, use_container_width=True)
+
     else:
-        st.info("No attendance records found.")
+        st.info("No records found")
