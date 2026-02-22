@@ -126,7 +126,8 @@ from PIL import Image, ImageDraw
 from dotenv import load_dotenv
 from supabase import create_client
 
-import face_recognition
+# ⭐ Light-weight AI recognition (Cloud safe)
+import mediapipe as mp
 
 # ===============================
 # CONFIG
@@ -181,23 +182,33 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # ===============================
-# FACE ENCODING
+# MEDIA PIPE FACE EMBEDDING
 # ===============================
 
-def get_face_encoding(image_np):
+mp_face = mp.solutions.face_mesh
 
-    rgb_image = image_np[:, :, ::-1]
+def get_face_embedding(image_np):
 
-    encodings = face_recognition.face_encodings(rgb_image)
+    if len(image_np.shape) == 3 and image_np.shape[2] == 4:
+        image_np = image_np[:, :, :3]
 
-    if len(encodings) == 0:
-        return None
+    with mp_face.FaceMesh(static_image_mode=True) as face_mesh:
 
-    return encodings[0]
+        results = face_mesh.process(image_np)
+
+        if not results.multi_face_landmarks:
+            return None
+
+        embedding = []
+
+        for lm in results.multi_face_landmarks[0].landmark:
+            embedding.append([lm.x, lm.y, lm.z])
+
+        return np.array(embedding).flatten()
 
 
 # ===============================
-# SIDEBAR
+# SIDEBAR MENU
 # ===============================
 
 menu = st.sidebar.selectbox(
@@ -232,7 +243,7 @@ if menu == "Register Face":
             image = Image.open(image_buffer).convert("RGB")
             image_np = np.array(image)
 
-            encoding = get_face_encoding(image_np)
+            encoding = get_face_embedding(image_np)
 
             if encoding is None:
                 st.error("No face detected")
@@ -244,7 +255,6 @@ if menu == "Register Face":
             }).execute()
 
             st.success("✅ Face registered successfully!")
-
 
 # ===============================
 # MARK ATTENDANCE
@@ -261,13 +271,9 @@ if menu == "Mark Attendance":
         image = Image.open(image_buffer).convert("RGB")
         image_np = np.array(image)
 
-        rgb_image = image_np[:, :, ::-1]
+        embedding = get_face_embedding(image_np)
 
-        # Detect face location + encoding
-        face_locations = face_recognition.face_locations(rgb_image)
-        face_encodings = face_recognition.face_encodings(rgb_image, face_locations)
-
-        if len(face_encodings) == 0:
+        if embedding is None:
             st.warning("No face detected")
             st.stop()
 
@@ -277,36 +283,27 @@ if menu == "Mark Attendance":
             st.warning("No registered faces")
             st.stop()
 
-        matched_name = None
-        confidence = 1.0
+        best_name = None
+        best_distance = float("inf")
 
         draw = ImageDraw.Draw(image)
 
-        for (top, right, bottom, left), face_encoding in zip(face_locations, face_encodings):
+        for face in faces.data:
 
-            best_match = None
-            best_distance = 1.0
+            stored_embedding = np.array(face["encoding"])
 
-            for face in faces.data:
+            # Normalize dimension mismatch
+            stored_embedding = np.resize(stored_embedding, len(embedding))
 
-                stored_encoding = np.array(face["encoding"])
+            dist = np.linalg.norm(embedding - stored_embedding)
 
-                dist = np.linalg.norm(face_encoding - stored_encoding)
-
-                if dist < best_distance:
-                    best_distance = dist
-                    best_match = face["name"]
-
-            # Draw face box
-            draw.rectangle([left, top, right, bottom], outline="green", width=3)
-
-            if best_distance < 0.5:
-                matched_name = best_match
-                confidence = round((1 - best_distance) * 100, 2)
+            if dist < best_distance:
+                best_distance = dist
+                best_name = face["name"]
 
         st.image(image, caption="Detected Face")
 
-        if matched_name:
+        if best_distance < 0.5 and best_name:
 
             now = datetime.datetime.now().time()
 
@@ -333,7 +330,7 @@ if menu == "Mark Attendance":
 
                 existing = supabase.table("attendance") \
                     .select("*") \
-                    .eq("name", matched_name.lower()) \
+                    .eq("name", best_name.lower()) \
                     .eq("lecture", current_lecture) \
                     .execute()
 
@@ -342,14 +339,16 @@ if menu == "Mark Attendance":
 
                 else:
                     supabase.table("attendance").insert({
-                        "name": matched_name.lower(),
+                        "name": best_name.lower(),
                         "lecture": current_lecture,
                         "marked_at": datetime.datetime.now().isoformat()
                     }).execute()
 
+                    confidence = round((1 - best_distance) * 100, 2)
+
                     st.success(f"""
                     ✅ Attendance Marked  
-                    Name: {matched_name}  
+                    Name: {best_name}  
                     Confidence: {confidence}%
                     """)
 
