@@ -124,9 +124,9 @@ import numpy as np
 from PIL import Image
 from dotenv import load_dotenv
 from supabase import create_client
-import face_recognition
+import tempfile
 
-# Updated recognition logic
+# DeepFace logic from main.py
 from main import identify_person
 
 # ===============================
@@ -141,31 +141,6 @@ st.set_page_config(
 )
 
 st.title("🎯 AI Face Attendance System")
-
-# ===============================
-# BACKGROUND
-# ===============================
-
-def set_background(image_path):
-    if not os.path.exists(image_path):
-        return
-
-    with open(image_path, "rb") as f:
-        encoded = base64.b64encode(f.read()).decode()
-
-    st.markdown(
-        f"""
-        <style>
-        .stApp {{
-            background: url("data:image/png;base64,{encoded}") no-repeat center center fixed;
-            background-size: cover;
-        }}
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
-
-set_background("background.png")
 
 # ===============================
 # SUPABASE CONNECTION
@@ -213,22 +188,26 @@ if menu == "Register Face":
             st.error("User already exists")
 
         else:
+            # Save image temporarily
             image = Image.open(image_buffer).convert("RGB")
-            image_np = np.array(image)
 
-            encodings = face_recognition.face_encodings(image_np)
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
+                image.save(tmp.name)
 
-            if len(encodings) == 0:
-                st.error("No face detected. Try again.")
-            else:
-                face_vector = encodings[0]
+                # Upload to Supabase Storage bucket
+                with open(tmp.name, "rb") as f:
+                    supabase.storage.from_("faces").upload(
+                        f"{name}.pngp",
+                        f,
+                        {"content-type": "image/jpeg"}
+                    )
 
-                supabase.table("faces_data").insert({
-                    "name": name,
-                    "encoding": face_vector.tolist()
-                }).execute()
+            # Save only name in table
+            supabase.table("faces_data").insert({
+                "name": name
+            }).execute()
 
-                st.success("✅ Face registered successfully!")
+            st.success("✅ Face registered successfully!")
 
 # ===============================
 # MARK ATTENDANCE
@@ -238,15 +217,19 @@ if menu == "Mark Attendance":
 
     st.header("📝 Mark Attendance")
 
-    image_buffer = st.camera_input("Capture Face to Mark Attendance")
+    image_buffer = st.camera_input("Capture Face")
 
     if image_buffer is not None:
 
         image = Image.open(image_buffer).convert("RGB")
-        image_np = np.array(image)
 
-        # 🔹 Identify person using updated main.py
-        name, message = identify_person(image_np)
+        # Save temp image
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
+            image.save(tmp.name)
+            temp_path = tmp.name
+
+        # Identify using DeepFace (from main.py)
+        name, message = identify_person(temp_path)
 
         if name:
 

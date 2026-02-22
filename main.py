@@ -166,10 +166,11 @@
 #         st.session_state.stop_camera = False
 #         info_box.success("Attendance session ended.")
 
-import numpy as np
 import os
+import tempfile
 from supabase import create_client
-import face_recognition
+from deepface import DeepFace
+import requests
 
 
 # ===============================
@@ -188,63 +189,61 @@ def get_supabase_client():
 
 
 # ===============================
-# LOAD REGISTERED FACES
+# LOAD REGISTERED USERS
 # ===============================
 
-def load_known_faces():
+def load_registered_users():
 
     supabase = get_supabase_client()
     response = supabase.table("faces_data").select("*").execute()
 
-    encodings = []
-    names = []
-
     if response.data:
-        for row in response.data:
-            encodings.append(np.array(row["encoding"]))
-            names.append(row["name"])
-
-    return encodings, names
+        return response.data
+    return []
 
 
 # ===============================
-# IDENTIFY PERSON (For Attendance)
+# IDENTIFY PERSON (DeepFace)
 # ===============================
 
-def identify_person(image_np):
+def identify_person(captured_image_path):
 
-    known_encodings, known_names = load_known_faces()
+    supabase = get_supabase_client()
+    users = load_registered_users()
 
-    if len(known_encodings) == 0:
+    if len(users) == 0:
         return None, "No registered faces found"
 
-    # Detect face
-    face_locations = face_recognition.face_locations(image_np)
-    face_encodings = face_recognition.face_encodings(image_np, face_locations)
+    for user in users:
 
-    if len(face_encodings) == 0:
-        return None, "No face detected"
+        name = user["name"]
 
-    unknown_encoding = face_encodings[0]
+        # Get public URL of stored image
+        public_url = supabase.storage.from_("faces").get_public_url(f"{name}.png")
 
-    # Compare faces
-    matches = face_recognition.compare_faces(
-        known_encodings,
-        unknown_encoding,
-        tolerance=0.5
-    )
+        image_url = public_url
 
-    face_distances = face_recognition.face_distance(
-        known_encodings,
-        unknown_encoding
-    )
+        # Download registered image temporarily
+        try:
+            response = requests.get(image_url)
+            if response.status_code != 200:
+                continue
 
-    if len(face_distances) == 0:
-        return None, "Face not recognized"
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
+                tmp.write(response.content)
+                registered_image_path = tmp.name
 
-    best_match_index = np.argmin(face_distances)
+            # Compare using DeepFace
+            result = DeepFace.verify(
+                img1_path=captured_image_path,
+                img2_path=registered_image_path,
+                enforce_detection=False
+            )
 
-    if matches[best_match_index]:
-        return known_names[best_match_index], "Match found"
+            if result["verified"]:
+                return name, "Match found"
+
+        except Exception:
+            continue
 
     return None, "Face not recognized"
