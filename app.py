@@ -197,7 +197,7 @@ if menu == "Register Face":
                 # Upload to Supabase Storage bucket
                 with open(tmp.name, "rb") as f:
                     supabase.storage.from_("faces").upload(
-                        f"{name}.pngp",
+                        f"{name}.png",
                         f,
                         {"content-type": "image/jpeg"}
                     )
