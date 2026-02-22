@@ -237,7 +237,7 @@ if menu == "Register Face":
 # RECOGNITION + ATTENDANCE
 # ===============================
 
-if menu == "Recognize Face":
+if menu == "Mark Attendance":
 
     st.header("🔍 Face Recognition")
 
