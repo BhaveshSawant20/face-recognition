@@ -169,8 +169,7 @@
 import numpy as np
 import os
 from supabase import create_client
-import mediapipe as mp
-from PIL import Image
+import face_recognition
 
 
 # ===============================
@@ -189,89 +188,63 @@ def get_supabase_client():
 
 
 # ===============================
-# FACE DETECTION (MEDIAPIPE)
-# ===============================
-
-def detect_face(image_np):
-
-    mp_face = mp.solutions.face_detection
-
-    # Convert to RGB if needed
-    if len(image_np.shape) == 3 and image_np.shape[2] == 4:
-        image_np = image_np[:, :, :3]
-
-    with mp_face.FaceDetection(
-        model_selection=1,
-        min_detection_confidence=0.5
-    ) as detector:
-
-        results = detector.process(image_np)
-
-        return bool(results.detections)
-
-
-# ===============================
-# LOAD FACES
+# LOAD REGISTERED FACES
 # ===============================
 
 def load_known_faces():
 
     supabase = get_supabase_client()
-
     response = supabase.table("faces_data").select("*").execute()
 
     encodings = []
     names = []
 
     if response.data:
-
         for row in response.data:
-
-            enc = np.array(row["encoding"], dtype=float)
-
-            encodings.append(enc)
+            encodings.append(np.array(row["encoding"]))
             names.append(row["name"])
 
     return encodings, names
 
 
 # ===============================
-# FACE RECOGNITION
+# IDENTIFY PERSON (For Attendance)
 # ===============================
 
-def recognize_face(image_np):
+def identify_person(image_np):
 
     known_encodings, known_names = load_known_faces()
 
     if len(known_encodings) == 0:
-        return "No registered faces"
+        return None, "No registered faces found"
 
-    if not detect_face(image_np):
-        return "No face detected"
+    # Detect face
+    face_locations = face_recognition.face_locations(image_np)
+    face_encodings = face_recognition.face_encodings(image_np, face_locations)
 
-    # Cloud friendly embedding approximation
-    pil_img = Image.fromarray(image_np).convert("RGB")
-    resized = pil_img.resize((32, 32))
+    if len(face_encodings) == 0:
+        return None, "No face detected"
 
-    face_vector = np.array(resized).flatten().astype(float)
-    face_vector = face_vector / 255.0
+    unknown_encoding = face_encodings[0]
 
-    distances = []
+    # Compare faces
+    matches = face_recognition.compare_faces(
+        known_encodings,
+        unknown_encoding,
+        tolerance=0.5
+    )
 
-    for enc in known_encodings:
+    face_distances = face_recognition.face_distance(
+        known_encodings,
+        unknown_encoding
+    )
 
-        enc = np.array(enc, dtype=float)
+    if len(face_distances) == 0:
+        return None, "Face not recognized"
 
-        # Normalize dimension mismatch
-        if len(enc) != len(face_vector):
-            enc = np.resize(enc, len(face_vector))
+    best_match_index = np.argmin(face_distances)
 
-        distances.append(np.linalg.norm(face_vector - enc))
+    if matches[best_match_index]:
+        return known_names[best_match_index], "Match found"
 
-    best_index = int(np.argmin(distances))
-
-    # Better threshold
-    if distances[best_index] < 30:
-        return f"Welcome {known_names[best_index]}"
-
-    return "Face not recognized"
+    return None, "Face not recognized"

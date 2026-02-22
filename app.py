@@ -124,9 +124,10 @@ import numpy as np
 from PIL import Image
 from dotenv import load_dotenv
 from supabase import create_client
+import face_recognition
 
-# Recognition logic
-from main import recognize_face
+# Updated recognition logic
+from main import identify_person
 
 # ===============================
 # CONFIG
@@ -146,7 +147,6 @@ st.title("🎯 AI Face Attendance System")
 # ===============================
 
 def set_background(image_path):
-
     if not os.path.exists(image_path):
         return
 
@@ -167,7 +167,6 @@ def set_background(image_path):
 
 set_background("background.png")
 
-
 # ===============================
 # SUPABASE CONNECTION
 # ===============================
@@ -181,16 +180,14 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-
 # ===============================
 # SIDEBAR MENU
 # ===============================
 
 menu = st.sidebar.selectbox(
     "Choose Mode",
-    ["Register Face", "Recognize Face", "View Attendance"]
+    ["Register Face", "Mark Attendance", "View Attendance"]
 )
-
 
 # ===============================
 # REGISTER FACE
@@ -207,7 +204,6 @@ if menu == "Register Face":
 
         name = name_input.strip().lower()
 
-        # Duplicate check
         existing = supabase.table("faces_data") \
             .select("*") \
             .ilike("name", name) \
@@ -220,54 +216,56 @@ if menu == "Register Face":
             image = Image.open(image_buffer).convert("RGB")
             image_np = np.array(image)
 
-            face_vector = np.mean(
-                np.array(image.resize((32,32))),
-                axis=(0,1)
-            )
+            encodings = face_recognition.face_encodings(image_np)
 
-            supabase.table("faces_data").insert({
-                "name": name,
-                "encoding": face_vector.tolist()
-            }).execute()
+            if len(encodings) == 0:
+                st.error("No face detected. Try again.")
+            else:
+                face_vector = encodings[0]
 
-            st.success("✅ Face registered successfully!")
+                supabase.table("faces_data").insert({
+                    "name": name,
+                    "encoding": face_vector.tolist()
+                }).execute()
 
+                st.success("✅ Face registered successfully!")
 
 # ===============================
-# RECOGNITION + ATTENDANCE
+# MARK ATTENDANCE
 # ===============================
 
-if menu == "Recognize Face":
+if menu == "Mark Attendance":
 
-    st.header("🔍 Face Recognition")
+    st.header("📝 Mark Attendance")
 
-    image_buffer = st.camera_input("Capture Face")
+    image_buffer = st.camera_input("Capture Face to Mark Attendance")
 
     if image_buffer is not None:
 
         image = Image.open(image_buffer).convert("RGB")
         image_np = np.array(image)
 
-        result = recognize_face(image_np)
+        # 🔹 Identify person using updated main.py
+        name, message = identify_person(image_np)
 
-        if "Welcome" in result:
+        if name:
 
-            name = result.replace("Welcome", "").strip().lower()
-            now = datetime.datetime.now().time()
+            now = datetime.datetime.now()
+            current_time = now.time()
 
             lecture_slots = {
-                "Lecture 1": (datetime.time(9,15), datetime.time(10,15)),
-                "Lecture 2": (datetime.time(10,15), datetime.time(11,15)),
-                "Lecture 3": (datetime.time(11,30), datetime.time(12,30)),
-                "Lecture 4": (datetime.time(12,30), datetime.time(13,30)),
-                "Lecture 5": (datetime.time(14,0), datetime.time(15,0)),
-                "Lecture 6": (datetime.time(15,0), datetime.time(16,0)),
+                "Lecture 1": (datetime.time(9, 15), datetime.time(10, 15)),
+                "Lecture 2": (datetime.time(10, 15), datetime.time(11, 15)),
+                "Lecture 3": (datetime.time(11, 30), datetime.time(12, 30)),
+                "Lecture 4": (datetime.time(12, 30), datetime.time(13, 30)),
+                "Lecture 5": (datetime.time(14, 0), datetime.time(15, 0)),
+                "Lecture 6": (datetime.time(15, 0), datetime.time(16, 0)),
             }
 
             current_lecture = None
 
-            for lec,(start,end) in lecture_slots.items():
-                if start <= now < end:
+            for lec, (start, end) in lecture_slots.items():
+                if start <= current_time < end:
                     current_lecture = lec
                     break
 
@@ -275,7 +273,6 @@ if menu == "Recognize Face":
                 st.warning("No active lecture currently")
 
             else:
-
                 existing = supabase.table("attendance") \
                     .select("*") \
                     .eq("name", name) \
@@ -283,20 +280,19 @@ if menu == "Recognize Face":
                     .execute()
 
                 if existing.data:
-                    st.warning("Attendance already marked")
+                    st.warning("⚠ Attendance already marked")
 
                 else:
                     supabase.table("attendance").insert({
                         "name": name,
                         "lecture": current_lecture,
-                        "marked_at": datetime.datetime.now().isoformat()
+                        "marked_at": now.isoformat()
                     }).execute()
 
-                    st.success(f"Attendance marked for {name}")
+                    st.success(f"✅ Attendance marked for {name}")
 
         else:
-            st.warning(result)
-
+            st.warning(message)
 
 # ===============================
 # VIEW ATTENDANCE
@@ -314,6 +310,5 @@ if menu == "View Attendance":
     if data.data:
         df = pd.DataFrame(data.data)
         st.dataframe(df, use_container_width=True)
-
     else:
         st.info("No records found")
