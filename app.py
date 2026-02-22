@@ -180,7 +180,7 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # ===============================
-# FACE EMBEDDING USING MEDIA PIPE
+# MEDIA PIPE EMBEDDING
 # ===============================
 
 mp_face = mp.solutions.face_mesh
@@ -190,7 +190,7 @@ def get_face_embedding(image_np):
     if len(image_np.shape) == 3 and image_np.shape[2] == 4:
         image_np = image_np[:, :, :3]
 
-    image_np = image_np.astype(np.float32) / 255.0
+    image_np = image_np.astype(np.uint8)
 
     with mp_face.FaceMesh(
         static_image_mode=True,
@@ -210,10 +210,13 @@ def get_face_embedding(image_np):
 
         embedding = np.array(embedding)
 
-        # Normalize vector
-        embedding = embedding / np.linalg.norm(embedding)
+        # Normalize vector safely
+        norm = np.linalg.norm(embedding)
+        if norm != 0:
+            embedding = embedding / norm
 
         return embedding
+
 
 # ===============================
 # SIDEBAR MENU
@@ -264,6 +267,7 @@ if menu == "Register Face":
 
             st.success("✅ Face registered successfully!")
 
+
 # ===============================
 # MARK ATTENDANCE
 # ===============================
@@ -298,11 +302,16 @@ if menu == "Mark Attendance":
 
             stored_embedding = np.array(face["encoding"])
 
-            stored_embedding = stored_embedding / np.linalg.norm(stored_embedding)
+            # Normalize database embedding
+            norm = np.linalg.norm(stored_embedding)
+            if norm != 0:
+                stored_embedding = stored_embedding / norm
 
-            stored_embedding = np.resize(stored_embedding, len(embedding))
-
-            dist = np.linalg.norm(embedding - stored_embedding)
+            # Match dimension safely
+            min_len = min(len(embedding), len(stored_embedding))
+            dist = np.linalg.norm(
+                embedding[:min_len] - stored_embedding[:min_len]
+            )
 
             if dist < best_distance:
                 best_distance = dist
@@ -361,6 +370,7 @@ if menu == "Mark Attendance":
 
         else:
             st.error("Face not recognized")
+
 
 # ===============================
 # VIEW ATTENDANCE
