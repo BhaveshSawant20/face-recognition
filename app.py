@@ -304,22 +304,7 @@ if menu == "Mark Attendance":
     st.markdown("### Select Lecture")
 
     subjects = ["SPCC", "CSS", "MC", "AI", "IOT", "CC", "MINI PROJECT"]
-    if "selected_subject" not in st.session_state:
-        st.session_state.selected_subject = None
-
-    col1, col2 = st.columns(2)
-    with col1:
-        for sub in subjects[:4]:
-            if st.button(sub, use_container_width=True,
-                         type="primary" if st.session_state.selected_subject == sub else "secondary"):
-                st.session_state.selected_subject = sub
-    with col2:
-        for sub in subjects[4:]:
-            if st.button(sub, use_container_width=True,
-                         type="primary" if st.session_state.selected_subject == sub else "secondary"):
-                st.session_state.selected_subject = sub
-
-    subject = st.session_state.selected_subject
+    subject = st.radio("Select Lecture", options=subjects, horizontal=True)
     st.markdown("---")
 
     colA, colB, colC = st.columns([1, 2, 1])
@@ -355,7 +340,13 @@ if menu == "Mark Attendance":
 
                     if last_record.data:
                         last_time_str = last_record.data[0]["marked_at"]
-                        last_time = datetime.datetime.fromisoformat(last_time_str)
+                        # Handle variable-length ISO strings robustly
+                        try:
+                            last_time = datetime.datetime.fromisoformat(last_time_str)
+                        except ValueError:
+                            from dateutil import parser
+                            last_time = parser.isoparse(last_time_str)
+
                         if last_time.tzinfo is None:
                             last_time = ist.localize(last_time)
                         diff_minutes = (now - last_time).total_seconds() / 60
