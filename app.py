@@ -250,7 +250,6 @@ menu = st.sidebar.selectbox(
 # REGISTER FACE
 # ===============================
 if menu == "Register Face":
-
     st.header("📌 Register New Student")
     full_name = st.text_input("Enter Full Name")
     roll_no_input = st.text_input("Enter Roll No")
@@ -306,7 +305,6 @@ if menu == "Register Face":
 # MARK ATTENDANCE
 # ===============================
 if menu == "Mark Attendance":
-
     st.header("📝 Mark Attendance")
     ist = pytz.timezone("Asia/Kolkata")
     now = datetime.datetime.now(ist)
@@ -342,7 +340,7 @@ if menu == "Mark Attendance":
                     image.save(tmp.name)
                     temp_path = tmp.name
 
-                recognized_name, message = identify_person(temp_path)
+                recognized_name, recognized_roll, message = identify_person(temp_path)
 
                 if not recognized_name:
                     st.warning(message)
@@ -358,11 +356,11 @@ if menu == "Mark Attendance":
 
                 registered_name = registered.data[0]["name"]
 
-                if recognized_name.lower() != registered_name.lower():
+                if recognized_name.lower() != registered_name.lower() or recognized_roll != roll_no:
                     st.error("❌ Face does not match the registered roll number")
                     st.stop()
 
-                # Cooldown check
+                # Cooldown check (45 minutes)
                 COOLDOWN_MINUTES = 45
                 last_record = supabase.table("attendance") \
                     .select("marked_at") \
