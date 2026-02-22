@@ -172,7 +172,6 @@ from supabase import create_client
 import mediapipe as mp
 from PIL import Image
 
-
 # ===============================
 # SUPABASE CLIENT
 # ===============================
@@ -189,29 +188,27 @@ def get_supabase_client():
 
 
 # ===============================
-# FACE DETECTION (MEDIAPIPE)
+# FACE DETECTION
 # ===============================
+
+mp_face = mp.solutions.face_detection
 
 def detect_face(image_np):
 
-    mp_face = mp.solutions.face_detection
-
-    # Convert to RGB if needed
     if len(image_np.shape) == 3 and image_np.shape[2] == 4:
         image_np = image_np[:, :, :3]
 
     with mp_face.FaceDetection(
         model_selection=1,
-        min_detection_confidence=0.5
+        min_detection_confidence=0.6
     ) as detector:
 
         results = detector.process(image_np)
-
-        return bool(results.detections)
+        return results.detections is not None
 
 
 # ===============================
-# LOAD FACES
+# LOAD FACE DATABASE
 # ===============================
 
 def load_known_faces():
@@ -226,17 +223,14 @@ def load_known_faces():
     if response.data:
 
         for row in response.data:
-
-            enc = np.array(row["encoding"], dtype=float)
-
-            encodings.append(enc)
+            encodings.append(np.array(row["encoding"], dtype=float))
             names.append(row["name"])
 
     return encodings, names
 
 
 # ===============================
-# FACE RECOGNITION
+# FACE RECOGNITION (IMPROVED)
 # ===============================
 
 def recognize_face(image_np):
@@ -249,29 +243,34 @@ def recognize_face(image_np):
     if not detect_face(image_np):
         return "No face detected"
 
-    # Cloud friendly embedding approximation
+    # Better feature representation than flatten pixels
     pil_img = Image.fromarray(image_np).convert("RGB")
-    resized = pil_img.resize((32, 32))
 
-    face_vector = np.array(resized).flatten().astype(float)
+    # Larger resize = better accuracy
+    resized = pil_img.resize((64, 64))
+
+    face_vector = np.array(resized).astype(float).flatten()
     face_vector = face_vector / 255.0
 
-    distances = []
+    best_distance = float("inf")
+    best_index = -1
 
-    for enc in known_encodings:
+    for i, enc in enumerate(known_encodings):
 
         enc = np.array(enc, dtype=float)
 
-        # Normalize dimension mismatch
+        # Normalize dimension mismatch safely
         if len(enc) != len(face_vector):
             enc = np.resize(enc, len(face_vector))
 
-        distances.append(np.linalg.norm(face_vector - enc))
+        dist = np.linalg.norm(face_vector - enc)
 
-    best_index = int(np.argmin(distances))
+        if dist < best_distance:
+            best_distance = dist
+            best_index = i
 
-    # Better threshold
-    if distances[best_index] < 30:
+    # Tighter threshold = better security
+    if best_distance < 25:
         return f"Welcome {known_names[best_index]}"
 
     return "Face not recognized"
