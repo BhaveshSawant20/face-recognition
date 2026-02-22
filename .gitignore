@@ -1,6 +1,7 @@
 # Virtual environment
 venv/
 env/
+.venv/
 
 # Python cache
 __pycache__/
@@ -11,14 +12,21 @@ __pycache__/
 .idea/
 .vscode/
 
-# Environment files
+# Environment files (Keep secrets local only)
 .env
 .streamlit/secrets.toml
 
-# Service account / secret files
-serviceAccountKey.json
-*.key.json
+# Database / Secret Keys (General safety)
+*.key
+*.pem
 
 # OS files
 .DS_Store
 Thumbs.db
+
+# Supabase / Cloud generated caches
+*.log
+cloud_faces/
+
+# ML model cache (optional but recommended)
+models/
