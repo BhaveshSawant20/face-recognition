@@ -229,20 +229,110 @@ if menu == "Register Face":
 # MARK ATTENDANCE
 # ===============================
 
+# if menu == "Mark Attendance":
+#
+#     st.header("📝 Mark Attendance")
+#
+#     image_buffer = st.camera_input("Capture Face", key="attendance_camera")
+#
+#     # Centered Button
+#     col1, col2, col3 = st.columns([1, 2, 1])
+#     with col2:
+#         mark_clicked = st.button("Mark Attendance", use_container_width=True)
+#
+#     if mark_clicked:
+#
+#         if not image_buffer:
+#             st.warning("Capture image first")
+#         else:
+#             try:
+#                 with st.spinner("Recognizing student..."):
+#
+#                     image = Image.open(image_buffer).convert("RGB")
+#
+#                     with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
+#                         image.save(tmp.name)
+#                         temp_path = tmp.name
+#
+#                     name, message = identify_person(temp_path)
+#
+#                 if name:
+#
+#                     ist = pytz.timezone("Asia/Kolkata")
+#                     now = datetime.datetime.now(ist)
+#                     current_time = now.time()
+#
+#                     lecture_slots = {
+#                         "Lecture 1": (datetime.time(9, 15), datetime.time(10, 15)),
+#                         "Lecture 2": (datetime.time(10, 15), datetime.time(11, 15)),
+#                         "Lecture 3": (datetime.time(11, 30), datetime.time(12, 30)),
+#                         "Lecture 4": (datetime.time(12, 30), datetime.time(13, 30)),
+#                         "Lecture 5": (datetime.time(14, 0), datetime.time(15, 0)),
+#                         "Lecture 6": (datetime.time(15, 0), datetime.time(16, 0)),
+#                     }
+#
+#                     current_lecture = None
+#
+#                     for lec, (start, end) in lecture_slots.items():
+#                         if start <= current_time < end:
+#                             current_lecture = lec
+#                             break
+#
+#                     if not current_lecture:
+#                         st.warning("No active lecture currently")
+#                     else:
+#                         existing = supabase.table("attendance") \
+#                             .select("*") \
+#                             .eq("name", name) \
+#                             .eq("lecture", current_lecture) \
+#                             .execute()
+#
+#                         if existing.data:
+#                             st.warning("⚠ Attendance already marked")
+#                         else:
+#                             supabase.table("attendance").insert({
+#                                 "name": name,
+#                                 "lecture": current_lecture,
+#                                 "marked_at": now.isoformat()
+#                             }).execute()
+#
+#                             st.success(f"✅ Attendance marked for {name}")
+#
+#                 else:
+#                     st.warning(message)
+#
+#             except Exception as e:
+#                 st.error(f"Recognition failed: {str(e)}")
+
 if menu == "Mark Attendance":
 
     st.header("📝 Mark Attendance")
 
+    roll_no = st.text_input("Enter Roll No")
+
+    subject = st.radio(
+        "Select Lecture",
+        ["MC", "CSS", "SPCC", "IOT", "AI", "CC", "MINI PROJECT"]
+    )
+
+    # Show current date & time (for faculty visibility)
+    ist = pytz.timezone("Asia/Kolkata")
+    now = datetime.datetime.now(ist)
+
+    st.write(f"📅 Date: {now.strftime('%d-%m-%Y')}")
+    st.write(f"⏰ Time: {now.strftime('%H:%M:%S')}")
+
     image_buffer = st.camera_input("Capture Face", key="attendance_camera")
 
-    # Centered Button
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         mark_clicked = st.button("Mark Attendance", use_container_width=True)
 
     if mark_clicked:
 
-        if not image_buffer:
+        if not roll_no.strip():
+            st.warning("Enter roll number")
+        elif not image_buffer:
             st.warning("Capture image first")
         else:
             try:
@@ -258,53 +348,33 @@ if menu == "Mark Attendance":
 
                 if name:
 
-                    ist = pytz.timezone("Asia/Kolkata")
-                    now = datetime.datetime.now(ist)
-                    current_time = now.time()
+                    # Prevent duplicate attendance (same subject same day)
+                    existing = supabase.table("attendance") \
+                        .select("*") \
+                        .eq("roll_no", roll_no) \
+                        .eq("subject", subject) \
+                        .eq("date", now.date().isoformat()) \
+                        .execute()
 
-                    lecture_slots = {
-                        "Lecture 1": (datetime.time(9, 15), datetime.time(10, 15)),
-                        "Lecture 2": (datetime.time(10, 15), datetime.time(11, 15)),
-                        "Lecture 3": (datetime.time(11, 30), datetime.time(12, 30)),
-                        "Lecture 4": (datetime.time(12, 30), datetime.time(13, 30)),
-                        "Lecture 5": (datetime.time(14, 0), datetime.time(15, 0)),
-                        "Lecture 6": (datetime.time(15, 0), datetime.time(16, 0)),
-                    }
-
-                    current_lecture = None
-
-                    for lec, (start, end) in lecture_slots.items():
-                        if start <= current_time < end:
-                            current_lecture = lec
-                            break
-
-                    if not current_lecture:
-                        st.warning("No active lecture currently")
+                    if existing.data:
+                        st.warning("⚠ Attendance already marked for this lecture today")
                     else:
-                        existing = supabase.table("attendance") \
-                            .select("*") \
-                            .eq("name", name) \
-                            .eq("lecture", current_lecture) \
-                            .execute()
+                        supabase.table("attendance").insert({
+                            "name": name,
+                            "roll_no": roll_no,
+                            "subject": subject,
+                            "date": now.date().isoformat(),
+                            "time": now.strftime("%H:%M:%S"),
+                            "marked_at": now.isoformat()
+                        }).execute()
 
-                        if existing.data:
-                            st.warning("⚠ Attendance already marked")
-                        else:
-                            supabase.table("attendance").insert({
-                                "name": name,
-                                "lecture": current_lecture,
-                                "marked_at": now.isoformat()
-                            }).execute()
-
-                            st.success(f"✅ Attendance marked for {name}")
+                        st.success(f"✅ Attendance marked for {name} ({subject})")
 
                 else:
                     st.warning(message)
 
             except Exception as e:
                 st.error(f"Recognition failed: {str(e)}")
-
-
 # ===============================
 # VIEW ATTENDANCE
 # ===============================
