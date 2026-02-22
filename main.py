@@ -192,13 +192,13 @@ def get_supabase_client():
 
 mp_face = mp.solutions.face_mesh
 
+
 def extract_face_embedding(image_np):
 
     if len(image_np.shape) == 3 and image_np.shape[2] == 4:
         image_np = image_np[:, :, :3]
 
-    # Normalize image
-    image_np = image_np.astype(np.float32) / 255.0
+    image_np = image_np.astype(np.uint8)
 
     with mp_face.FaceMesh(
         static_image_mode=True,
@@ -218,8 +218,10 @@ def extract_face_embedding(image_np):
 
         embedding = np.array(landmarks)
 
-        # Normalize embedding (VERY IMPORTANT)
-        embedding = embedding / np.linalg.norm(embedding)
+        # Safe normalization
+        norm = np.linalg.norm(embedding)
+        if norm != 0:
+            embedding = embedding / norm
 
         return embedding
 
@@ -268,11 +270,14 @@ def recognize_face(image_np):
 
         enc = np.array(enc)
 
-        # Normalize database embedding
-        enc = enc / np.linalg.norm(enc)
+        # Safe normalization
+        norm = np.linalg.norm(enc)
+        if norm != 0:
+            enc = enc / norm
 
-        # Match dimension safely
-        enc = np.resize(enc, len(embedding))
+        # Skip if dimension mismatch
+        if len(enc) != len(embedding):
+            continue
 
         dist = np.linalg.norm(embedding - enc)
 
@@ -280,9 +285,9 @@ def recognize_face(image_np):
             best_distance = dist
             best_name = name
 
-    # ⭐ Better threshold for mini project demo
+    # Threshold matching
     if best_distance < 0.6:
-        confidence = round((1 - best_distance) * 100, 2)
-        return f"Welcome {best_name} ({confidence}% confidence)"
+        confidence = max(0, (0.6 - best_distance) / 0.6 * 100)
+        return f"Welcome {best_name} ({round(confidence,2)}% confidence)"
 
     return "Face not recognized"
