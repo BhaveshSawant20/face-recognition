@@ -233,7 +233,10 @@ if menu == "Mark Attendance":
 
         if name:
 
-            now = datetime.datetime.now()
+            import pytz
+
+            ist = pytz.timezone("Asia/Kolkata")
+            now = datetime.datetime.now(ist)
             current_time = now.time()
 
             lecture_slots = {
