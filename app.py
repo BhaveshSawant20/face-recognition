@@ -125,7 +125,7 @@ from PIL import Image
 from dotenv import load_dotenv
 from supabase import create_client
 
-# Import recognition logic
+# Recognition logic
 from main import recognize_face
 
 # ===============================
@@ -142,7 +142,7 @@ st.set_page_config(
 st.title("🎯 AI Face Attendance System")
 
 # ===============================
-# BACKGROUND IMAGE
+# BACKGROUND
 # ===============================
 
 def set_background(image_path):
@@ -167,6 +167,7 @@ def set_background(image_path):
 
 set_background("background.png")
 
+
 # ===============================
 # SUPABASE CONNECTION
 # ===============================
@@ -180,6 +181,7 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+
 # ===============================
 # SIDEBAR MENU
 # ===============================
@@ -188,6 +190,7 @@ menu = st.sidebar.selectbox(
     "Choose Mode",
     ["Register Face", "Recognize Face", "View Attendance"]
 )
+
 
 # ===============================
 # REGISTER FACE
@@ -204,7 +207,7 @@ if menu == "Register Face":
 
         name = name_input.strip().lower()
 
-        # Check duplicate user
+        # Duplicate check
         existing = supabase.table("faces_data") \
             .select("*") \
             .ilike("name", name) \
@@ -214,12 +217,11 @@ if menu == "Register Face":
             st.error("User already exists")
 
         else:
-            image = Image.open(image_buffer)
+            image = Image.open(image_buffer).convert("RGB")
             image_np = np.array(image)
 
-            # Cloud friendly encoding
             face_vector = np.mean(
-                Image.fromarray(image_np).resize((32,32)),
+                np.array(image.resize((32,32))),
                 axis=(0,1)
             )
 
@@ -230,8 +232,9 @@ if menu == "Register Face":
 
             st.success("✅ Face registered successfully!")
 
+
 # ===============================
-# RECOGNIZE + ATTENDANCE
+# RECOGNITION + ATTENDANCE
 # ===============================
 
 if menu == "Recognize Face":
@@ -242,7 +245,7 @@ if menu == "Recognize Face":
 
     if image_buffer is not None:
 
-        image = Image.open(image_buffer)
+        image = Image.open(image_buffer).convert("RGB")
         image_np = np.array(image)
 
         result = recognize_face(image_np)
@@ -252,7 +255,6 @@ if menu == "Recognize Face":
             name = result.replace("Welcome", "").strip().lower()
             now = datetime.datetime.now().time()
 
-            # Lecture slots
             lecture_slots = {
                 "Lecture 1": (datetime.time(9,15), datetime.time(10,15)),
                 "Lecture 2": (datetime.time(10,15), datetime.time(11,15)),
@@ -294,6 +296,7 @@ if menu == "Recognize Face":
 
         else:
             st.warning(result)
+
 
 # ===============================
 # VIEW ATTENDANCE

@@ -170,6 +170,7 @@ import numpy as np
 import os
 from supabase import create_client
 import mediapipe as mp
+from PIL import Image
 
 
 # ===============================
@@ -195,6 +196,10 @@ def detect_face(image_np):
 
     mp_face = mp.solutions.face_detection
 
+    # Convert to RGB if needed
+    if len(image_np.shape) == 3 and image_np.shape[2] == 4:
+        image_np = image_np[:, :, :3]
+
     with mp_face.FaceDetection(
         model_selection=1,
         min_detection_confidence=0.5
@@ -202,14 +207,11 @@ def detect_face(image_np):
 
         results = detector.process(image_np)
 
-        if results.detections:
-            return True
-
-    return False
+        return bool(results.detections)
 
 
 # ===============================
-# LOAD FACES FROM DATABASE
+# LOAD FACES
 # ===============================
 
 def load_known_faces():
@@ -222,8 +224,12 @@ def load_known_faces():
     names = []
 
     if response.data:
+
         for row in response.data:
-            encodings.append(np.array(row["encoding"]))
+
+            enc = np.array(row["encoding"], dtype=float)
+
+            encodings.append(enc)
             names.append(row["name"])
 
     return encodings, names
@@ -243,22 +249,20 @@ def recognize_face(image_np):
     if not detect_face(image_np):
         return "No face detected"
 
-    # Cloud safe embedding approximation
-    resized = np.array(
-        __import__("PIL.Image").Image.fromarray(image_np)
-        .resize((32, 32))
-    )
+    # Cloud friendly embedding approximation
+    pil_img = Image.fromarray(image_np).convert("RGB")
+    resized = pil_img.resize((32, 32))
 
-    face_vector = resized.flatten().astype(float)
+    face_vector = np.array(resized).flatten().astype(float)
     face_vector = face_vector / 255.0
 
     distances = []
 
     for enc in known_encodings:
 
-        enc = np.array(enc).astype(float)
+        enc = np.array(enc, dtype=float)
 
-        # Normalize size mismatch
+        # Normalize dimension mismatch
         if len(enc) != len(face_vector):
             enc = np.resize(enc, len(face_vector))
 
@@ -266,8 +270,8 @@ def recognize_face(image_np):
 
     best_index = int(np.argmin(distances))
 
-    # Threshold tuning
-    if distances[best_index] < 35:
+    # Better threshold
+    if distances[best_index] < 30:
         return f"Welcome {known_names[best_index]}"
 
     return "Face not recognized"
