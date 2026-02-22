@@ -188,7 +188,7 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 menu = st.sidebar.selectbox(
     "Choose Mode",
-    ["Register Face", "Recognize Face", "View Attendance"]
+    ["Register Face", "Mark Attendance", "View Attendance"]
 )
 
 
