@@ -215,9 +215,9 @@ from dotenv import load_dotenv
 from supabase import create_client
 import tempfile
 import pytz
+from dateutil import parser
 
 from main import identify_person
-from dateutil import parser  # robust ISO timestamp parsing
 
 # ===============================
 # CONFIG
@@ -268,36 +268,39 @@ if menu == "Register Face":
         elif not image_buffer:
             st.warning("Capture image first")
         else:
-            name = full_name.strip().lower()
+            name = full_name.strip()
             roll_no = roll_no_input.strip()
 
-            # Check if name or roll number already exists
-            existing_name = supabase.table("faces_data").select("*").ilike("name", name).execute()
-            existing_roll = supabase.table("faces_data").select("*").eq("roll_no", roll_no).execute()
+            try:
+                # Check if roll number already exists
+                existing_roll = supabase.table("faces_data").select("*").eq("roll_no", roll_no).execute()
+                if existing_roll.data:
+                    st.error("Roll number already exists")
+                    st.stop()
 
-            if existing_name.data:
-                st.error("Student name already exists")
-            elif existing_roll.data:
-                st.error("Roll number already exists")
-            else:
-                try:
-                    with st.spinner("Registering student..."):
-                        image = Image.open(image_buffer).convert("RGB")
-                        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
-                            image.save(tmp.name)
-                            with open(tmp.name, "rb") as f:
-                                supabase.storage.from_("faces").upload(
-                                    f"{roll_no}_{name}.png",
-                                    f,
-                                    {"content-type": "image/png", "upsert": "true"}
-                                )
-                        supabase.table("faces_data").insert({
-                            "name": name,
-                            "roll_no": roll_no
-                        }).execute()
-                    st.success("✅ Student registered successfully!")
-                except Exception as e:
-                    st.error(f"Upload failed: {str(e)}")
+                # Save image to Supabase Storage
+                with st.spinner("Registering student..."):
+                    image = Image.open(image_buffer).convert("RGB")
+                    filename = f"{roll_no}_{name}.png"
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
+                        image.save(tmp.name)
+                        with open(tmp.name, "rb") as f:
+                            supabase.storage.from_("faces").upload(
+                                filename,
+                                f,
+                                {"content-type": "image/png", "upsert": "true"}
+                            )
+
+                    # Insert student data
+                    supabase.table("faces_data").insert({
+                        "name": name,
+                        "roll_no": roll_no,
+                        "image_path": filename
+                    }).execute()
+
+                st.success(f"✅ Student {name} registered successfully!")
+            except Exception as e:
+                st.error(f"Registration failed: {str(e)}")
 
 # ===============================
 # MARK ATTENDANCE
@@ -333,76 +336,75 @@ if menu == "Mark Attendance":
             st.warning("Please select a lecture")
         else:
             try:
-                with st.spinner("Recognizing student..."):
-                    image = Image.open(image_buffer).convert("RGB")
-                    with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
-                        image.save(tmp.name)
-                        temp_path = tmp.name
+                # Recognize face
+                image = Image.open(image_buffer).convert("RGB")
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
+                    image.save(tmp.name)
+                    temp_path = tmp.name
 
-                    # Identify student
-                    recognized_name, message = identify_person(temp_path)
+                recognized_name, message = identify_person(temp_path)
 
-                if recognized_name:
-                    roll_no = roll_no_input.strip()
-                    # Fetch registered info
-                    registered = supabase.table("faces_data") \
-                        .select("*") \
-                        .eq("roll_no", roll_no) \
-                        .execute()
-
-                    if not registered.data:
-                        st.error("❌ Roll number not registered")
-                        st.stop()
-
-                    registered_name = registered.data[0]["name"]
-
-                    if recognized_name.lower() != registered_name.lower():
-                        st.error("❌ Face does not match registered roll number")
-                        st.stop()
-
-                    # Check cooldown
-                    COOLDOWN_MINUTES = 45
-                    last_record = supabase.table("attendance") \
-                        .select("marked_at") \
-                        .eq("roll_no", roll_no) \
-                        .order("marked_at", desc=True) \
-                        .limit(1) \
-                        .execute()
-
-                    if last_record.data:
-                        last_time_str = last_record.data[0]["marked_at"]
-                        last_time = parser.isoparse(last_time_str)
-                        if last_time.tzinfo is None:
-                            last_time = ist.localize(last_time)
-                        diff_minutes = (now - last_time).total_seconds() / 60
-                        if diff_minutes < COOLDOWN_MINUTES:
-                            remaining = int(COOLDOWN_MINUTES - diff_minutes)
-                            st.error(f"⛔ Cooldown active. Try again after {remaining} minutes.")
-                            st.stop()
-
-                    # Check if attendance already marked for this lecture today
-                    existing = supabase.table("attendance") \
-                        .select("*") \
-                        .eq("roll_no", roll_no) \
-                        .eq("subject", subject) \
-                        .eq("date", now.date().isoformat()) \
-                        .execute()
-
-                    if existing.data:
-                        st.warning("⚠ Attendance already marked for this lecture today")
-                    else:
-                        supabase.table("attendance").insert({
-                            "name": recognized_name,
-                            "roll_no": roll_no,
-                            "subject": subject,
-                            "date": now.date().isoformat(),
-                            "time": now.strftime("%H:%M:%S"),
-                            "marked_at": now.isoformat()
-                        }).execute()
-
-                        st.success(f"✅ Attendance marked for {recognized_name} ({subject})")
-                else:
+                if not recognized_name:
                     st.warning(message)
+                    st.stop()
+
+                roll_no = roll_no_input.strip()
+
+                # Fetch student by roll_no
+                registered = supabase.table("faces_data").select("*").eq("roll_no", roll_no).execute()
+                if not registered.data:
+                    st.error("❌ Roll number not registered")
+                    st.stop()
+
+                registered_name = registered.data[0]["name"]
+
+                if recognized_name.lower() != registered_name.lower():
+                    st.error("❌ Face does not match the registered roll number")
+                    st.stop()
+
+                # Cooldown check
+                COOLDOWN_MINUTES = 45
+                last_record = supabase.table("attendance") \
+                    .select("marked_at") \
+                    .eq("roll_no", roll_no) \
+                    .order("marked_at", desc=True) \
+                    .limit(1) \
+                    .execute()
+
+                if last_record.data:
+                    last_time = parser.isoparse(last_record.data[0]["marked_at"])
+                    if last_time.tzinfo is None:
+                        last_time = ist.localize(last_time)
+                    diff_minutes = (now - last_time).total_seconds() / 60
+                    if diff_minutes < COOLDOWN_MINUTES:
+                        remaining = int(COOLDOWN_MINUTES - diff_minutes)
+                        st.error(f"⛔ Cooldown active. Try again after {remaining} minutes.")
+                        st.stop()
+
+                # Check duplicate attendance for same lecture/date
+                existing_attendance = supabase.table("attendance") \
+                    .select("*") \
+                    .eq("roll_no", roll_no) \
+                    .eq("subject", subject) \
+                    .eq("date", now.date().isoformat()) \
+                    .execute()
+
+                if existing_attendance.data:
+                    st.warning("⚠ Attendance already marked for this lecture today")
+                    st.stop()
+
+                # Insert attendance
+                supabase.table("attendance").insert({
+                    "roll_no": roll_no,
+                    "name": recognized_name,
+                    "subject": subject,
+                    "date": now.date().isoformat(),
+                    "time": now.strftime("%H:%M:%S"),
+                    "marked_at": now.isoformat()
+                }).execute()
+
+                st.success(f"✅ Attendance marked for {recognized_name} ({subject})")
+
             except Exception as e:
                 st.error(f"Recognition failed: {str(e)}")
 
