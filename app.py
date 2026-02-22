@@ -262,7 +262,6 @@ if menu == "Register Face":
     st.header("📌 Register New Student")
 
     name_input = st.text_input("Enter Student Name")
-
     image_buffer = st.camera_input("Capture Face", key="register_camera")
 
     col1, col2, col3 = st.columns([1, 2, 1])
@@ -298,10 +297,7 @@ if menu == "Register Face":
                                 supabase.storage.from_("faces").upload(
                                     f"{name}.png",
                                     f,
-                                    {
-                                        "content-type": "image/png",
-                                        "upsert": "true"
-                                    }
+                                    {"content-type": "image/png", "upsert": "true"}
                                 )
 
                         supabase.table("faces_data").insert({
@@ -313,7 +309,6 @@ if menu == "Register Face":
                 except Exception as e:
                     st.error(f"Upload failed: {str(e)}")
 
-
 # ===============================
 # MARK ATTENDANCE
 # ===============================
@@ -322,19 +317,18 @@ if menu == "Mark Attendance":
 
     st.header("📝 Mark Attendance")
 
-    # Current Date & Time
     ist = pytz.timezone("Asia/Kolkata")
     now = datetime.datetime.now(ist)
 
     st.write(f"📅 Date: {now.strftime('%d-%m-%Y')}")
     st.write(f"⏰ Time: {now.strftime('%H:%M:%S')}")
 
-    # Camera First
+    # Camera
     image_buffer = st.camera_input("Capture Face", key="attendance_camera")
 
     st.markdown("---")
 
-    # Roll Number Below Camera
+    # Roll number
     roll_no = st.text_input("Enter Roll No")
 
     st.markdown("### Select Lecture")
@@ -346,9 +340,8 @@ if menu == "Mark Attendance":
 
     col1, col2 = st.columns(2)
 
-    # Left Column
     with col1:
-        for sub in subjects[:4]:  # SPCC, CSS, MC, AI
+        for sub in subjects[:4]:
             if st.button(
                 sub,
                 use_container_width=True,
@@ -356,9 +349,8 @@ if menu == "Mark Attendance":
             ):
                 st.session_state.selected_subject = sub
 
-    # Right Column
     with col2:
-        for sub in subjects[4:]:  # IOT, CC, MINI PROJECT
+        for sub in subjects[4:]:
             if st.button(
                 sub,
                 use_container_width=True,
@@ -396,7 +388,31 @@ if menu == "Mark Attendance":
 
                 if name:
 
-                    # Prevent duplicate attendance (same roll + same subject + same date)
+                    COOLDOWN_MINUTES = 45
+
+                    # Get last attendance
+                    last_record = supabase.table("attendance") \
+                        .select("marked_at") \
+                        .eq("roll_no", roll_no) \
+                        .order("marked_at", desc=True) \
+                        .limit(1) \
+                        .execute()
+
+                    if last_record.data:
+                        last_time_str = last_record.data[0]["marked_at"]
+                        last_time = datetime.datetime.fromisoformat(last_time_str)
+
+                        if last_time.tzinfo is None:
+                            last_time = ist.localize(last_time)
+
+                        diff_minutes = (now - last_time).total_seconds() / 60
+
+                        if diff_minutes < COOLDOWN_MINUTES:
+                            remaining = int(COOLDOWN_MINUTES - diff_minutes)
+                            st.error(f"⛔ Cooldown active. Try again after {remaining} minutes.")
+                            st.stop()
+
+                    # Prevent duplicate same subject same day
                     existing = supabase.table("attendance") \
                         .select("*") \
                         .eq("roll_no", roll_no) \
@@ -423,7 +439,6 @@ if menu == "Mark Attendance":
 
             except Exception as e:
                 st.error(f"Recognition failed: {str(e)}")
-
 
 # ===============================
 # VIEW ATTENDANCE
