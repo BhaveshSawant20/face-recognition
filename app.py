@@ -222,12 +222,7 @@ from main import identify_person
 # CONFIG
 # ===============================
 load_dotenv()
-
-st.set_page_config(
-    page_title="AI Attendance System",
-    layout="centered"
-)
-
+st.set_page_config(page_title="AI Attendance System", layout="centered")
 st.title("🎯 AI Face Attendance System")
 
 # ===============================
@@ -256,7 +251,6 @@ menu = st.sidebar.selectbox(
 if menu == "Register Face":
 
     st.header("📌 Register New Student")
-
     name_input = st.text_input("Enter Student Name")
     image_buffer = st.camera_input("Capture Face", key="register_camera")
 
@@ -265,7 +259,6 @@ if menu == "Register Face":
         register_clicked = st.button("Register Student", use_container_width=True)
 
     if register_clicked:
-
         if not name_input.strip():
             st.warning("Enter student name first")
         elif not image_buffer:
@@ -273,35 +266,23 @@ if menu == "Register Face":
         else:
             name = name_input.strip().lower()
 
-            existing = supabase.table("faces_data") \
-                .select("*") \
-                .ilike("name", name) \
-                .execute()
-
+            existing = supabase.table("faces_data").select("*").ilike("name", name).execute()
             if existing.data:
                 st.error("Student already exists")
             else:
                 try:
                     with st.spinner("Registering student..."):
-
                         image = Image.open(image_buffer).convert("RGB")
-
                         with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
                             image.save(tmp.name)
-
                             with open(tmp.name, "rb") as f:
                                 supabase.storage.from_("faces").upload(
                                     f"{name}.png",
                                     f,
                                     {"content-type": "image/png", "upsert": "true"}
                                 )
-
-                        supabase.table("faces_data").insert({
-                            "name": name
-                        }).execute()
-
+                        supabase.table("faces_data").insert({"name": name}).execute()
                     st.success("✅ Student registered successfully!")
-
                 except Exception as e:
                     st.error(f"Upload failed: {str(e)}")
 
@@ -311,43 +292,31 @@ if menu == "Register Face":
 if menu == "Mark Attendance":
 
     st.header("📝 Mark Attendance")
-
     ist = pytz.timezone("Asia/Kolkata")
     now = datetime.datetime.now(ist)
-
     st.write(f"📅 Date: {now.strftime('%d-%m-%Y')}")
     st.write(f"⏰ Time: {now.strftime('%H:%M:%S')}")
 
-    # Camera
+    # Camera input
     image_buffer = st.camera_input("Capture Face", key="attendance_camera")
-
     st.markdown("---")
-
-    # Roll number
     roll_no = st.text_input("Enter Roll No")
-
     st.markdown("### Select Lecture")
-    subjects = ["SPCC", "CSS", "MC", "AI", "IOT", "CC", "MINI PROJECT"]
 
+    subjects = ["SPCC", "CSS", "MC", "AI", "IOT", "CC", "MINI PROJECT"]
     if "selected_subject" not in st.session_state:
         st.session_state.selected_subject = None
 
     col1, col2 = st.columns(2)
     with col1:
         for sub in subjects[:4]:
-            if st.button(
-                sub,
-                use_container_width=True,
-                type="primary" if st.session_state.selected_subject == sub else "secondary"
-            ):
+            if st.button(sub, use_container_width=True,
+                         type="primary" if st.session_state.selected_subject == sub else "secondary"):
                 st.session_state.selected_subject = sub
     with col2:
         for sub in subjects[4:]:
-            if st.button(
-                sub,
-                use_container_width=True,
-                type="primary" if st.session_state.selected_subject == sub else "secondary"
-            ):
+            if st.button(sub, use_container_width=True,
+                         type="primary" if st.session_state.selected_subject == sub else "secondary"):
                 st.session_state.selected_subject = sub
 
     subject = st.session_state.selected_subject
@@ -358,7 +327,6 @@ if menu == "Mark Attendance":
         mark_clicked = st.button("Mark Attendance", use_container_width=True)
 
     if mark_clicked:
-
         if not image_buffer:
             st.warning("Capture image first")
         elif not roll_no.strip():
@@ -368,9 +336,7 @@ if menu == "Mark Attendance":
         else:
             try:
                 with st.spinner("Recognizing student..."):
-
                     image = Image.open(image_buffer).convert("RGB")
-
                     with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
                         image.save(tmp.name)
                         temp_path = tmp.name
@@ -379,10 +345,7 @@ if menu == "Mark Attendance":
                     name, message = identify_person(temp_path)
 
                 if name:
-
                     COOLDOWN_MINUTES = 45
-
-                    # Get last attendance
                     last_record = supabase.table("attendance") \
                         .select("marked_at") \
                         .eq("roll_no", roll_no) \
@@ -393,18 +356,14 @@ if menu == "Mark Attendance":
                     if last_record.data:
                         last_time_str = last_record.data[0]["marked_at"]
                         last_time = datetime.datetime.fromisoformat(last_time_str)
-
                         if last_time.tzinfo is None:
                             last_time = ist.localize(last_time)
-
                         diff_minutes = (now - last_time).total_seconds() / 60
-
                         if diff_minutes < COOLDOWN_MINUTES:
                             remaining = int(COOLDOWN_MINUTES - diff_minutes)
                             st.error(f"⛔ Cooldown active. Try again after {remaining} minutes.")
                             st.stop()
 
-                    # Prevent duplicate same subject same day
                     existing = supabase.table("attendance") \
                         .select("*") \
                         .eq("roll_no", roll_no) \
@@ -425,10 +384,8 @@ if menu == "Mark Attendance":
                         }).execute()
 
                         st.success(f"✅ Attendance marked for {name} ({subject})")
-
                 else:
                     st.warning(message)
-
             except Exception as e:
                 st.error(f"Recognition failed: {str(e)}")
 
@@ -436,14 +393,8 @@ if menu == "Mark Attendance":
 # VIEW ATTENDANCE
 # ===============================
 if menu == "View Attendance":
-
     st.header("📊 Attendance Records")
-
-    data = supabase.table("attendance") \
-        .select("*") \
-        .order("marked_at", desc=True) \
-        .execute()
-
+    data = supabase.table("attendance").select("*").order("marked_at", desc=True).execute()
     if data.data:
         df = pd.DataFrame(data.data)
         st.dataframe(df, use_container_width=True)

@@ -197,25 +197,25 @@ def load_registered_users():
 
 
 # ===============================
-# IDENTIFY PERSON (DeepFace)
+# IDENTIFY PERSON (DeepFace) — BEST MATCH
 # ===============================
 def identify_person(captured_image_path):
-
     supabase = get_supabase_client()
     users = load_registered_users()
 
     if len(users) == 0:
         return None, "No registered faces found"
 
-    for user in users:
+    best_match_name = None
+    lowest_distance = 1.0  # maximum possible distance
 
+    for user in users:
         name = user["name"]
 
         try:
             # Get public URL properly
             url_data = supabase.storage.from_("faces").get_public_url(f"{name}.png")
             image_url = url_data.get('publicUrl') if isinstance(url_data, dict) else url_data
-
             if not image_url:
                 continue
 
@@ -233,14 +233,20 @@ def identify_person(captured_image_path):
             result = DeepFace.verify(
                 img1_path=captured_image_path,
                 img2_path=registered_image_path,
-                enforce_detection=False
+                enforce_detection=False,
+                model_name='Facenet'  # more accurate
             )
 
-            if result["verified"]:
-                return name, "Match found"
+            distance = result.get('distance', 1.0)
+            if distance < lowest_distance and distance < 0.45:  # threshold for match
+                lowest_distance = distance
+                best_match_name = name
 
         except Exception as e:
             print(f"Error verifying {name}: {e}")
             continue
 
-    return None, "Face not recognized"
+    if best_match_name:
+        return best_match_name, "Match found"
+    else:
+        return None, "Face not recognized"
