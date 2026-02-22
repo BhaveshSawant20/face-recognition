@@ -142,6 +142,16 @@ st.set_page_config(
 st.title("🎯 AI Face Attendance System")
 
 # ===============================
+# SESSION STATE (Camera Reset Fix)
+# ===============================
+
+if "reset_register_camera" not in st.session_state:
+    st.session_state.reset_register_camera = False
+
+if "reset_attendance_camera" not in st.session_state:
+    st.session_state.reset_attendance_camera = False
+
+# ===============================
 # SUPABASE CONNECTION
 # ===============================
 
@@ -172,7 +182,15 @@ if menu == "Register Face":
     st.header("📌 Register New Face")
 
     name_input = st.text_input("Enter Name")
-    image_buffer = st.camera_input("Capture Face")
+
+    camera_key = "register_camera"
+    if st.session_state.reset_register_camera:
+        camera_key = "register_camera_reset"
+
+    image_buffer = st.camera_input("Capture Face", key=camera_key)
+
+    if st.session_state.reset_register_camera:
+        st.session_state.reset_register_camera = False
 
     if image_buffer and name_input.strip():
 
@@ -198,7 +216,7 @@ if menu == "Register Face":
                             f,
                             {
                                 "content-type": "image/png",
-                                "upsert": "true"  # Prevent duplicate error
+                                "upsert": "true"
                             }
                         )
 
@@ -207,6 +225,10 @@ if menu == "Register Face":
                 }).execute()
 
                 st.success("✅ Face registered successfully!")
+
+                # 🔥 Reset camera after success
+                st.session_state.reset_register_camera = True
+                st.rerun()
 
             except Exception as e:
                 st.error(f"Upload failed: {str(e)}")
@@ -219,7 +241,14 @@ if menu == "Mark Attendance":
 
     st.header("📝 Mark Attendance")
 
-    image_buffer = st.camera_input("Capture Face")
+    camera_key = "attendance_camera"
+    if st.session_state.reset_attendance_camera:
+        camera_key = "attendance_camera_reset"
+
+    image_buffer = st.camera_input("Capture Face", key=camera_key)
+
+    if st.session_state.reset_attendance_camera:
+        st.session_state.reset_attendance_camera = False
 
     if image_buffer is not None:
 
@@ -273,6 +302,10 @@ if menu == "Mark Attendance":
                         }).execute()
 
                         st.success(f"✅ Attendance marked for {name}")
+
+                        # 🔥 Reset camera after marking
+                        st.session_state.reset_attendance_camera = True
+                        st.rerun()
 
             else:
                 st.warning(message)
