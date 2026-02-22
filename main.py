@@ -166,7 +166,8 @@
 #         st.session_state.stop_camera = False
 #         info_box.success("Attendance session ended.")
 
-import cv2
+def process_image():
+    import cv2
 import numpy as np
 import mediapipe as mp
 from supabase import create_client
