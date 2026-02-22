@@ -217,6 +217,7 @@ import tempfile
 import pytz
 
 from main import identify_person
+from dateutil import parser  # robust ISO timestamp parsing
 
 # ===============================
 # CONFIG
@@ -251,7 +252,8 @@ menu = st.sidebar.selectbox(
 if menu == "Register Face":
 
     st.header("📌 Register New Student")
-    name_input = st.text_input("Enter Student Name")
+    full_name = st.text_input("Enter Full Name")
+    roll_no_input = st.text_input("Enter Roll No")
     image_buffer = st.camera_input("Capture Face", key="register_camera")
 
     col1, col2, col3 = st.columns([1, 2, 1])
@@ -259,16 +261,24 @@ if menu == "Register Face":
         register_clicked = st.button("Register Student", use_container_width=True)
 
     if register_clicked:
-        if not name_input.strip():
-            st.warning("Enter student name first")
+        if not full_name.strip():
+            st.warning("Enter student full name")
+        elif not roll_no_input.strip():
+            st.warning("Enter roll number")
         elif not image_buffer:
             st.warning("Capture image first")
         else:
-            name = name_input.strip().lower()
+            name = full_name.strip().lower()
+            roll_no = roll_no_input.strip()
 
-            existing = supabase.table("faces_data").select("*").ilike("name", name).execute()
-            if existing.data:
-                st.error("Student already exists")
+            # Check if name or roll number already exists
+            existing_name = supabase.table("faces_data").select("*").ilike("name", name).execute()
+            existing_roll = supabase.table("faces_data").select("*").eq("roll_no", roll_no).execute()
+
+            if existing_name.data:
+                st.error("Student name already exists")
+            elif existing_roll.data:
+                st.error("Roll number already exists")
             else:
                 try:
                     with st.spinner("Registering student..."):
@@ -277,11 +287,14 @@ if menu == "Register Face":
                             image.save(tmp.name)
                             with open(tmp.name, "rb") as f:
                                 supabase.storage.from_("faces").upload(
-                                    f"{name}.png",
+                                    f"{roll_no}_{name}.png",
                                     f,
                                     {"content-type": "image/png", "upsert": "true"}
                                 )
-                        supabase.table("faces_data").insert({"name": name}).execute()
+                        supabase.table("faces_data").insert({
+                            "name": name,
+                            "roll_no": roll_no
+                        }).execute()
                     st.success("✅ Student registered successfully!")
                 except Exception as e:
                     st.error(f"Upload failed: {str(e)}")
@@ -300,7 +313,7 @@ if menu == "Mark Attendance":
     # Camera input
     image_buffer = st.camera_input("Capture Face", key="attendance_camera")
     st.markdown("---")
-    roll_no = st.text_input("Enter Roll No")
+    roll_no_input = st.text_input("Enter Roll No")
     st.markdown("### Select Lecture")
 
     subjects = ["SPCC", "CSS", "MC", "AI", "IOT", "CC", "MINI PROJECT"]
@@ -314,7 +327,7 @@ if menu == "Mark Attendance":
     if mark_clicked:
         if not image_buffer:
             st.warning("Capture image first")
-        elif not roll_no.strip():
+        elif not roll_no_input.strip():
             st.warning("Enter roll number")
         elif not subject:
             st.warning("Please select a lecture")
@@ -326,10 +339,28 @@ if menu == "Mark Attendance":
                         image.save(tmp.name)
                         temp_path = tmp.name
 
-                    # Identify student dynamically
-                    name, message = identify_person(temp_path)
+                    # Identify student
+                    recognized_name, message = identify_person(temp_path)
 
-                if name:
+                if recognized_name:
+                    roll_no = roll_no_input.strip()
+                    # Fetch registered info
+                    registered = supabase.table("faces_data") \
+                        .select("*") \
+                        .eq("roll_no", roll_no) \
+                        .execute()
+
+                    if not registered.data:
+                        st.error("❌ Roll number not registered")
+                        st.stop()
+
+                    registered_name = registered.data[0]["name"]
+
+                    if recognized_name.lower() != registered_name.lower():
+                        st.error("❌ Face does not match registered roll number")
+                        st.stop()
+
+                    # Check cooldown
                     COOLDOWN_MINUTES = 45
                     last_record = supabase.table("attendance") \
                         .select("marked_at") \
@@ -340,13 +371,7 @@ if menu == "Mark Attendance":
 
                     if last_record.data:
                         last_time_str = last_record.data[0]["marked_at"]
-                        # Handle variable-length ISO strings robustly
-                        try:
-                            last_time = datetime.datetime.fromisoformat(last_time_str)
-                        except ValueError:
-                            from dateutil import parser
-                            last_time = parser.isoparse(last_time_str)
-
+                        last_time = parser.isoparse(last_time_str)
                         if last_time.tzinfo is None:
                             last_time = ist.localize(last_time)
                         diff_minutes = (now - last_time).total_seconds() / 60
@@ -355,6 +380,7 @@ if menu == "Mark Attendance":
                             st.error(f"⛔ Cooldown active. Try again after {remaining} minutes.")
                             st.stop()
 
+                    # Check if attendance already marked for this lecture today
                     existing = supabase.table("attendance") \
                         .select("*") \
                         .eq("roll_no", roll_no) \
@@ -366,7 +392,7 @@ if menu == "Mark Attendance":
                         st.warning("⚠ Attendance already marked for this lecture today")
                     else:
                         supabase.table("attendance").insert({
-                            "name": name,
+                            "name": recognized_name,
                             "roll_no": roll_no,
                             "subject": subject,
                             "date": now.date().isoformat(),
@@ -374,7 +400,7 @@ if menu == "Mark Attendance":
                             "marked_at": now.isoformat()
                         }).execute()
 
-                        st.success(f"✅ Attendance marked for {name} ({subject})")
+                        st.success(f"✅ Attendance marked for {recognized_name} ({subject})")
                 else:
                     st.warning(message)
             except Exception as e:
