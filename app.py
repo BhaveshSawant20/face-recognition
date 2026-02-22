@@ -308,24 +308,47 @@ if menu == "Mark Attendance":
 
     st.header("📝 Mark Attendance")
 
-    roll_no = st.text_input("Enter Roll No")
-
-    subject = st.radio(
-        "Select Lecture",
-        ["MC", "CSS", "SPCC", "IOT", "AI", "CC", "MINI PROJECT"]
-    )
-
-    # Show current date & time (for faculty visibility)
+    # Show date & time (top)
     ist = pytz.timezone("Asia/Kolkata")
     now = datetime.datetime.now(ist)
 
     st.write(f"📅 Date: {now.strftime('%d-%m-%Y')}")
     st.write(f"⏰ Time: {now.strftime('%H:%M:%S')}")
 
+    # Camera FIRST
     image_buffer = st.camera_input("Capture Face", key="attendance_camera")
 
-    col1, col2, col3 = st.columns([1, 2, 1])
+    st.markdown("---")
+
+    # Roll No BELOW camera
+    roll_no = st.text_input("Enter Roll No")
+
+    st.markdown("### Select Lecture")
+
+    # Split subjects into 2 columns
+    col1, col2 = st.columns(2)
+
+    with col1:
+        s1 = st.radio(
+            " ",
+            ["SPCC", "CSS", "MC", "AI"],
+            key="left_subject"
+        )
+
     with col2:
+        s2 = st.radio(
+            "  ",
+            ["IOT", "CC", "MINI PROJECT"],
+            key="right_subject"
+        )
+
+    # Determine selected subject
+    subject = s1 if s1 else s2
+
+    st.markdown("---")
+
+    colA, colB, colC = st.columns([1, 2, 1])
+    with colB:
         mark_clicked = st.button("Mark Attendance", use_container_width=True)
 
     if mark_clicked:
@@ -348,27 +371,25 @@ if menu == "Mark Attendance":
 
                 if name:
 
-                    # Prevent duplicate attendance (same subject same day)
+                    # Prevent duplicate attendance same day
                     existing = supabase.table("attendance") \
                         .select("*") \
                         .eq("roll_no", roll_no) \
-                        .eq("subject", subject) \
                         .eq("date", now.date().isoformat()) \
                         .execute()
 
                     if existing.data:
-                        st.warning("⚠ Attendance already marked for this lecture today")
+                        st.warning("⚠ Attendance already marked today")
                     else:
                         supabase.table("attendance").insert({
                             "name": name,
                             "roll_no": roll_no,
-                            "subject": subject,
                             "date": now.date().isoformat(),
                             "time": now.strftime("%H:%M:%S"),
                             "marked_at": now.isoformat()
                         }).execute()
 
-                        st.success(f"✅ Attendance marked for {name} ({subject})")
+                        st.success(f"✅ Attendance marked for {name}")
 
                 else:
                     st.warning(message)
@@ -378,6 +399,21 @@ if menu == "Mark Attendance":
 # ===============================
 # VIEW ATTENDANCE
 # ===============================
+
+# if menu == "View Attendance":
+#
+#     st.header("📊 Attendance Records")
+#
+#     data = supabase.table("attendance") \
+#         .select("*") \
+#         .order("marked_at", desc=True) \
+#         .execute()
+#
+#     if data.data:
+#         df = pd.DataFrame(data.data)
+#         st.dataframe(df, use_container_width=True)
+#     else:
+#         st.info("No records found")
 
 if menu == "View Attendance":
 
@@ -390,6 +426,11 @@ if menu == "View Attendance":
 
     if data.data:
         df = pd.DataFrame(data.data)
+
+        # Remove subject column if exists
+        if "subject" in df.columns:
+            df = df.drop(columns=["subject"])
+
         st.dataframe(df, use_container_width=True)
     else:
         st.info("No records found")
