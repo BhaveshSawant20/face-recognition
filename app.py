@@ -122,16 +122,17 @@ import datetime
 import pandas as pd
 import numpy as np
 from PIL import Image
-
 from dotenv import load_dotenv
 from supabase import create_client
 
+# Import recognition logic
 from main import recognize_face
 
+# ===============================
+# CONFIG
+# ===============================
 
-# ===============================
-# PAGE CONFIG
-# ===============================
+load_dotenv()
 
 st.set_page_config(
     page_title="AI Attendance System",
@@ -140,10 +141,8 @@ st.set_page_config(
 
 st.title("🎯 AI Face Attendance System")
 
-load_dotenv()
-
 # ===============================
-# BACKGROUND
+# BACKGROUND IMAGE
 # ===============================
 
 def set_background(image_path):
@@ -168,23 +167,21 @@ def set_background(image_path):
 
 set_background("background.png")
 
-
 # ===============================
-# SUPABASE
+# SUPABASE CONNECTION
 # ===============================
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
 if not SUPABASE_URL or not SUPABASE_KEY:
-    st.error("Supabase environment variables not set.")
+    st.error("Supabase environment variables missing")
     st.stop()
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-
 # ===============================
-# MENU
+# SIDEBAR MENU
 # ===============================
 
 menu = st.sidebar.selectbox(
@@ -192,22 +189,22 @@ menu = st.sidebar.selectbox(
     ["Register Face", "Recognize Face", "View Attendance"]
 )
 
-
 # ===============================
 # REGISTER FACE
 # ===============================
 
 if menu == "Register Face":
 
-    st.header("📌 Register Face")
+    st.header("📌 Register New Face")
 
     name_input = st.text_input("Enter Name")
     image_buffer = st.camera_input("Capture Face")
 
-    if image_buffer and name_input:
+    if image_buffer and name_input.strip():
 
         name = name_input.strip().lower()
 
+        # Check duplicate user
         existing = supabase.table("faces_data") \
             .select("*") \
             .ilike("name", name) \
@@ -220,27 +217,30 @@ if menu == "Register Face":
             image = Image.open(image_buffer)
             image_np = np.array(image)
 
-            face_vector = np.mean(image_np, axis=(0, 1))
+            # Cloud friendly encoding
+            face_vector = np.mean(
+                Image.fromarray(image_np).resize((32,32)),
+                axis=(0,1)
+            )
 
             supabase.table("faces_data").insert({
                 "name": name,
                 "encoding": face_vector.tolist()
             }).execute()
 
-            st.success("Face registered!")
-
+            st.success("✅ Face registered successfully!")
 
 # ===============================
-# RECOGNITION + ATTENDANCE
+# RECOGNIZE + ATTENDANCE
 # ===============================
 
 if menu == "Recognize Face":
 
-    st.header("🔍 Recognize Face")
+    st.header("🔍 Face Recognition")
 
     image_buffer = st.camera_input("Capture Face")
 
-    if image_buffer:
+    if image_buffer is not None:
 
         image = Image.open(image_buffer)
         image_np = np.array(image)
@@ -250,9 +250,9 @@ if menu == "Recognize Face":
         if "Welcome" in result:
 
             name = result.replace("Welcome", "").strip().lower()
-
             now = datetime.datetime.now().time()
 
+            # Lecture slots
             lecture_slots = {
                 "Lecture 1": (datetime.time(9,15), datetime.time(10,15)),
                 "Lecture 2": (datetime.time(10,15), datetime.time(11,15)),
@@ -264,13 +264,13 @@ if menu == "Recognize Face":
 
             current_lecture = None
 
-            for lec, (start, end) in lecture_slots.items():
+            for lec,(start,end) in lecture_slots.items():
                 if start <= now < end:
                     current_lecture = lec
                     break
 
             if not current_lecture:
-                st.warning("No active lecture")
+                st.warning("No active lecture currently")
 
             else:
 
@@ -292,6 +292,8 @@ if menu == "Recognize Face":
 
                     st.success(f"Attendance marked for {name}")
 
+        else:
+            st.warning(result)
 
 # ===============================
 # VIEW ATTENDANCE

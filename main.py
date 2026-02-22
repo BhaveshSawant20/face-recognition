@@ -166,12 +166,11 @@
 #         st.session_state.stop_camera = False
 #         info_box.success("Attendance session ended.")
 
-def process_image():
-    import cv2
 import numpy as np
-import mediapipe as mp
-from supabase import create_client
 import os
+from supabase import create_client
+import cv2
+import mediapipe as mp
 
 
 # ===============================
@@ -183,65 +182,86 @@ def get_supabase_client():
     supabase_key = os.getenv("SUPABASE_KEY")
 
     if not supabase_url or not supabase_key:
-        raise ValueError("Supabase environment variables not set.")
+        raise ValueError("Supabase env variables missing")
 
     return create_client(supabase_url, supabase_key)
 
 
 # ===============================
-# FACE DETECTION USING MEDIAPIPE
+# FACE DETECTION
 # ===============================
 
 mp_face = mp.solutions.face_detection
 
+
 def detect_face(image_np):
-    with mp_face.FaceDetection(model_selection=1, min_detection_confidence=0.5) as face_detector:
-        results = face_detector.process(cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR))
+    with mp_face.FaceDetection(
+            model_selection=1,
+            min_detection_confidence=0.5
+    ) as detector:
+
+        results = detector.process(
+            cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR)
+        )
+
         return results.detections if results.detections else []
 
 
 # ===============================
-# SIMPLE FACE ENCODING STORAGE
-# (Cloud friendly approach)
+# LOAD FACES
 # ===============================
 
 def load_known_faces():
+
     supabase = get_supabase_client()
 
     response = supabase.table("faces_data").select("*").execute()
 
-    known_encodings = []
-    known_names = []
+    encodings = []
+    names = []
 
     if response.data:
-        for item in response.data:
-            known_encodings.append(np.array(item["encoding"]))
-            known_names.append(item["name"])
+        for row in response.data:
+            encodings.append(np.array(row["encoding"]))
+            names.append(row["name"])
 
-    return known_encodings, known_names
+    return encodings, names
 
+
+# ===============================
+# FACE RECOGNITION (Better Logic)
+# ===============================
 
 def recognize_face(image_np):
 
     known_encodings, known_names = load_known_faces()
 
-    if not known_encodings:
-        return "No registered faces."
+    if len(known_encodings) == 0:
+        return "No registered faces"
 
-    # Simple vector matching
     detections = detect_face(image_np)
 
     if not detections:
-        return "No face detected."
+        return "No face detected"
 
-    # Generate dummy embedding (cloud safe approximation)
-    face_vector = np.mean(image_np, axis=(0, 1))
+    # Better embedding approximation (not perfect but safer)
+    face_vector = cv2.resize(image_np, (32, 32)).flatten()
+    face_vector = face_vector / 255.0
 
-    distances = [np.linalg.norm(face_vector - enc) for enc in known_encodings]
+    distances = []
+
+    for enc in known_encodings:
+        enc = np.array(enc)
+
+        # Normalize dimension mismatch safety
+        if len(enc) != len(face_vector):
+            enc = np.resize(enc, len(face_vector))
+
+        distances.append(np.linalg.norm(face_vector - enc))
 
     best_index = int(np.argmin(distances))
 
-    if distances[best_index] < 50:
+    if distances[best_index] < 30:
         return f"Welcome {known_names[best_index]}"
 
     return "Face not recognized"
