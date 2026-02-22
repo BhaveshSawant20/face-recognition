@@ -125,6 +125,7 @@ from supabase import create_client
 import tempfile
 import pytz
 
+# DeepFace logic
 from main import identify_person
 
 # ===============================
@@ -163,20 +164,26 @@ menu = st.sidebar.selectbox(
 )
 
 # ===============================
-# REGISTER FACE
+# REGISTER STUDENT
 # ===============================
 
 if menu == "Register Face":
 
-    st.header("📌 Register New Face")
+    st.header("📌 Register New Student")
 
-    name_input = st.text_input("Enter Name")
+    name_input = st.text_input("Enter Student Name")
+
     image_buffer = st.camera_input("Capture Face", key="register_camera")
 
-    if st.button("Register"):
+    # Centered Button
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        register_clicked = st.button("Register Student", use_container_width=True)
+
+    if register_clicked:
 
         if not name_input.strip():
-            st.warning("Enter name first")
+            st.warning("Enter student name first")
         elif not image_buffer:
             st.warning("Capture image first")
         else:
@@ -188,10 +195,11 @@ if menu == "Register Face":
                 .execute()
 
             if existing.data:
-                st.error("User already exists")
+                st.error("Student already exists")
             else:
                 try:
-                    with st.spinner("Registering face..."):
+                    with st.spinner("Registering student..."):
+
                         image = Image.open(image_buffer).convert("RGB")
 
                         with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
@@ -211,11 +219,11 @@ if menu == "Register Face":
                             "name": name
                         }).execute()
 
-                    st.success("✅ Face registered successfully!")
-                    st.info("You can now switch to Mark Attendance")
+                    st.success("✅ Student registered successfully!")
 
                 except Exception as e:
                     st.error(f"Upload failed: {str(e)}")
+
 
 # ===============================
 # MARK ATTENDANCE
@@ -227,13 +235,18 @@ if menu == "Mark Attendance":
 
     image_buffer = st.camera_input("Capture Face", key="attendance_camera")
 
-    if st.button("Mark Attendance"):
+    # Centered Button
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        mark_clicked = st.button("Mark Attendance", use_container_width=True)
+
+    if mark_clicked:
 
         if not image_buffer:
             st.warning("Capture image first")
         else:
             try:
-                with st.spinner("Recognizing face..."):
+                with st.spinner("Recognizing student..."):
 
                     image = Image.open(image_buffer).convert("RGB")
 
@@ -290,6 +303,7 @@ if menu == "Mark Attendance":
 
             except Exception as e:
                 st.error(f"Recognition failed: {str(e)}")
+
 
 # ===============================
 # VIEW ATTENDANCE
