@@ -125,8 +125,7 @@ from PIL import Image
 from dotenv import load_dotenv
 from supabase import create_client
 
-# Recognition logic
-from main import recognize_face
+import face_recognition   # ⭐ IMPORTANT ADD
 
 # ===============================
 # CONFIG
@@ -167,7 +166,6 @@ def set_background(image_path):
 
 set_background("background.png")
 
-
 # ===============================
 # SUPABASE CONNECTION
 # ===============================
@@ -181,6 +179,20 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+# ===============================
+# FACE ENCODING FUNCTION
+# ===============================
+
+def get_face_encoding(image_np):
+
+    rgb_image = image_np[:, :, ::-1]
+
+    encodings = face_recognition.face_encodings(rgb_image)
+
+    if len(encodings) == 0:
+        return None
+
+    return encodings[0]
 
 # ===============================
 # SIDEBAR MENU
@@ -190,7 +202,6 @@ menu = st.sidebar.selectbox(
     "Choose Mode",
     ["Register Face", "Mark Attendance", "View Attendance"]
 )
-
 
 # ===============================
 # REGISTER FACE
@@ -207,7 +218,6 @@ if menu == "Register Face":
 
         name = name_input.strip().lower()
 
-        # Duplicate check
         existing = supabase.table("faces_data") \
             .select("*") \
             .ilike("name", name) \
@@ -220,26 +230,26 @@ if menu == "Register Face":
             image = Image.open(image_buffer).convert("RGB")
             image_np = np.array(image)
 
-            face_vector = np.mean(
-                np.array(image.resize((32,32))),
-                axis=(0,1)
-            )
+            encoding = get_face_encoding(image_np)
+
+            if encoding is None:
+                st.error("No face detected. Try again.")
+                st.stop()
 
             supabase.table("faces_data").insert({
                 "name": name,
-                "encoding": face_vector.tolist()
+                "encoding": encoding.tolist()
             }).execute()
 
             st.success("✅ Face registered successfully!")
 
-
 # ===============================
-# RECOGNITION + ATTENDANCE
+# MARK ATTENDANCE
 # ===============================
 
 if menu == "Mark Attendance":
 
-    st.header("🔍 Face Recognition")
+    st.header("🔍 Mark Attendance")
 
     image_buffer = st.camera_input("Capture Face")
 
@@ -248,11 +258,37 @@ if menu == "Mark Attendance":
         image = Image.open(image_buffer).convert("RGB")
         image_np = np.array(image)
 
-        result = recognize_face(image_np)
+        input_encoding = get_face_encoding(image_np)
 
-        if "Welcome" in result:
+        if input_encoding is None:
+            st.warning("No face detected")
+            st.stop()
 
-            name = result.replace("Welcome", "").strip().lower()
+        faces = supabase.table("faces_data").select("*").execute()
+
+        if not faces.data:
+            st.warning("No registered faces")
+            st.stop()
+
+        matched_name = None
+
+        for face in faces.data:
+
+            stored_encoding = np.array(face["encoding"])
+
+            matches = face_recognition.compare_faces(
+                [stored_encoding],
+                input_encoding,
+                tolerance=0.5
+            )
+
+            if matches[0]:
+                matched_name = face["name"]
+                break
+
+        if matched_name:
+
+            name = matched_name.lower()
             now = datetime.datetime.now().time()
 
             lecture_slots = {
@@ -292,11 +328,10 @@ if menu == "Mark Attendance":
                         "marked_at": datetime.datetime.now().isoformat()
                     }).execute()
 
-                    st.success(f"Attendance marked for {name}")
+                    st.success(f"✅ Attendance marked for {name}")
 
         else:
-            st.warning(result)
-
+            st.error("Face not recognized")
 
 # ===============================
 # VIEW ATTENDANCE
