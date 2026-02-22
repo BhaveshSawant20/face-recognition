@@ -172,13 +172,10 @@ from supabase import create_client
 from deepface import DeepFace
 import requests
 
-
 # ===============================
 # SUPABASE CLIENT
 # ===============================
-
 def get_supabase_client():
-
     supabase_url = os.getenv("SUPABASE_URL")
     supabase_key = os.getenv("SUPABASE_KEY")
 
@@ -191,12 +188,9 @@ def get_supabase_client():
 # ===============================
 # LOAD REGISTERED USERS
 # ===============================
-
 def load_registered_users():
-
     supabase = get_supabase_client()
     response = supabase.table("faces_data").select("*").execute()
-
     if response.data:
         return response.data
     return []
@@ -205,7 +199,6 @@ def load_registered_users():
 # ===============================
 # IDENTIFY PERSON (DeepFace)
 # ===============================
-
 def identify_person(captured_image_path):
 
     supabase = get_supabase_client()
@@ -218,15 +211,18 @@ def identify_person(captured_image_path):
 
         name = user["name"]
 
-        # Get public URL of stored image
-        public_url = supabase.storage.from_("faces").get_public_url(f"{name}.png")
-
-        image_url = public_url
-
-        # Download registered image temporarily
         try:
+            # Get public URL properly
+            url_data = supabase.storage.from_("faces").get_public_url(f"{name}.png")
+            image_url = url_data.get('publicUrl') if isinstance(url_data, dict) else url_data
+
+            if not image_url:
+                continue
+
+            # Download registered image temporarily
             response = requests.get(image_url)
             if response.status_code != 200:
+                print(f"Failed to fetch image for {name}")
                 continue
 
             with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
@@ -243,7 +239,8 @@ def identify_person(captured_image_path):
             if result["verified"]:
                 return name, "Match found"
 
-        except Exception:
+        except Exception as e:
+            print(f"Error verifying {name}: {e}")
             continue
 
     return None, "Face not recognized"

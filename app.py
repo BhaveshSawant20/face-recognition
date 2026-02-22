@@ -221,7 +221,6 @@ from main import identify_person
 # ===============================
 # CONFIG
 # ===============================
-
 load_dotenv()
 
 st.set_page_config(
@@ -234,7 +233,6 @@ st.title("🎯 AI Face Attendance System")
 # ===============================
 # SUPABASE CONNECTION
 # ===============================
-
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
@@ -247,7 +245,6 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 # ===============================
 # SIDEBAR MENU
 # ===============================
-
 menu = st.sidebar.selectbox(
     "Choose Mode",
     ["Register Face", "Mark Attendance", "View Attendance"]
@@ -256,7 +253,6 @@ menu = st.sidebar.selectbox(
 # ===============================
 # REGISTER FACE
 # ===============================
-
 if menu == "Register Face":
 
     st.header("📌 Register New Student")
@@ -312,7 +308,6 @@ if menu == "Register Face":
 # ===============================
 # MARK ATTENDANCE
 # ===============================
-
 if menu == "Mark Attendance":
 
     st.header("📝 Mark Attendance")
@@ -332,14 +327,12 @@ if menu == "Mark Attendance":
     roll_no = st.text_input("Enter Roll No")
 
     st.markdown("### Select Lecture")
-
     subjects = ["SPCC", "CSS", "MC", "AI", "IOT", "CC", "MINI PROJECT"]
 
     if "selected_subject" not in st.session_state:
         st.session_state.selected_subject = None
 
     col1, col2 = st.columns(2)
-
     with col1:
         for sub in subjects[:4]:
             if st.button(
@@ -348,7 +341,6 @@ if menu == "Mark Attendance":
                 type="primary" if st.session_state.selected_subject == sub else "secondary"
             ):
                 st.session_state.selected_subject = sub
-
     with col2:
         for sub in subjects[4:]:
             if st.button(
@@ -359,7 +351,6 @@ if menu == "Mark Attendance":
                 st.session_state.selected_subject = sub
 
     subject = st.session_state.selected_subject
-
     st.markdown("---")
 
     colA, colB, colC = st.columns([1, 2, 1])
@@ -384,6 +375,7 @@ if menu == "Mark Attendance":
                         image.save(tmp.name)
                         temp_path = tmp.name
 
+                    # Identify student dynamically
                     name, message = identify_person(temp_path)
 
                 if name:
@@ -443,7 +435,6 @@ if menu == "Mark Attendance":
 # ===============================
 # VIEW ATTENDANCE
 # ===============================
-
 if menu == "View Attendance":
 
     st.header("📊 Attendance Records")
