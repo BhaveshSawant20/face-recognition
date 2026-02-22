@@ -121,11 +121,12 @@ import os
 import datetime
 import pandas as pd
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageDraw
+
 from dotenv import load_dotenv
 from supabase import create_client
 
-import face_recognition   # ⭐ IMPORTANT ADD
+import face_recognition
 
 # ===============================
 # CONFIG
@@ -180,7 +181,7 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # ===============================
-# FACE ENCODING FUNCTION
+# FACE ENCODING
 # ===============================
 
 def get_face_encoding(image_np):
@@ -194,8 +195,9 @@ def get_face_encoding(image_np):
 
     return encodings[0]
 
+
 # ===============================
-# SIDEBAR MENU
+# SIDEBAR
 # ===============================
 
 menu = st.sidebar.selectbox(
@@ -233,7 +235,7 @@ if menu == "Register Face":
             encoding = get_face_encoding(image_np)
 
             if encoding is None:
-                st.error("No face detected. Try again.")
+                st.error("No face detected")
                 st.stop()
 
             supabase.table("faces_data").insert({
@@ -242,6 +244,7 @@ if menu == "Register Face":
             }).execute()
 
             st.success("✅ Face registered successfully!")
+
 
 # ===============================
 # MARK ATTENDANCE
@@ -253,14 +256,18 @@ if menu == "Mark Attendance":
 
     image_buffer = st.camera_input("Capture Face")
 
-    if image_buffer is not None:
+    if image_buffer:
 
         image = Image.open(image_buffer).convert("RGB")
         image_np = np.array(image)
 
-        input_encoding = get_face_encoding(image_np)
+        rgb_image = image_np[:, :, ::-1]
 
-        if input_encoding is None:
+        # Detect face location + encoding
+        face_locations = face_recognition.face_locations(rgb_image)
+        face_encodings = face_recognition.face_encodings(rgb_image, face_locations)
+
+        if len(face_encodings) == 0:
             st.warning("No face detected")
             st.stop()
 
@@ -271,24 +278,36 @@ if menu == "Mark Attendance":
             st.stop()
 
         matched_name = None
+        confidence = 1.0
 
-        for face in faces.data:
+        draw = ImageDraw.Draw(image)
 
-            stored_encoding = np.array(face["encoding"])
+        for (top, right, bottom, left), face_encoding in zip(face_locations, face_encodings):
 
-            matches = face_recognition.compare_faces(
-                [stored_encoding],
-                input_encoding,
-                tolerance=0.5
-            )
+            best_match = None
+            best_distance = 1.0
 
-            if matches[0]:
-                matched_name = face["name"]
-                break
+            for face in faces.data:
+
+                stored_encoding = np.array(face["encoding"])
+
+                dist = np.linalg.norm(face_encoding - stored_encoding)
+
+                if dist < best_distance:
+                    best_distance = dist
+                    best_match = face["name"]
+
+            # Draw face box
+            draw.rectangle([left, top, right, bottom], outline="green", width=3)
+
+            if best_distance < 0.5:
+                matched_name = best_match
+                confidence = round((1 - best_distance) * 100, 2)
+
+        st.image(image, caption="Detected Face")
 
         if matched_name:
 
-            name = matched_name.lower()
             now = datetime.datetime.now().time()
 
             lecture_slots = {
@@ -314,7 +333,7 @@ if menu == "Mark Attendance":
 
                 existing = supabase.table("attendance") \
                     .select("*") \
-                    .eq("name", name) \
+                    .eq("name", matched_name.lower()) \
                     .eq("lecture", current_lecture) \
                     .execute()
 
@@ -323,15 +342,20 @@ if menu == "Mark Attendance":
 
                 else:
                     supabase.table("attendance").insert({
-                        "name": name,
+                        "name": matched_name.lower(),
                         "lecture": current_lecture,
                         "marked_at": datetime.datetime.now().isoformat()
                     }).execute()
 
-                    st.success(f"✅ Attendance marked for {name}")
+                    st.success(f"""
+                    ✅ Attendance Marked  
+                    Name: {matched_name}  
+                    Confidence: {confidence}%
+                    """)
 
         else:
             st.error("Face not recognized")
+
 
 # ===============================
 # VIEW ATTENDANCE

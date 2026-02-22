@@ -181,34 +181,41 @@ def get_supabase_client():
     supabase_url = os.getenv("SUPABASE_URL")
     supabase_key = os.getenv("SUPABASE_KEY")
 
-    if not supabase_url or not supabase_key:
-        raise ValueError("Supabase environment variables not set")
-
     return create_client(supabase_url, supabase_key)
 
 
 # ===============================
-# FACE DETECTION
+# MEDIA PIPE FACE MESH
 # ===============================
 
-mp_face = mp.solutions.face_detection
+mp_face = mp.solutions.face_mesh
 
-def detect_face(image_np):
+def extract_face_embedding(image_np):
 
     if len(image_np.shape) == 3 and image_np.shape[2] == 4:
         image_np = image_np[:, :, :3]
 
-    with mp_face.FaceDetection(
-        model_selection=1,
-        min_detection_confidence=0.6
-    ) as detector:
+    with mp_face.FaceMesh(
+        static_image_mode=True,
+        max_num_faces=1
+    ) as face_mesh:
 
-        results = detector.process(image_np)
-        return results.detections is not None
+        results = face_mesh.process(image_np)
+
+        if not results.multi_face_landmarks:
+            return None
+
+        # Use facial landmark coordinates as embedding
+        landmarks = []
+
+        for lm in results.multi_face_landmarks[0].landmark:
+            landmarks.append([lm.x, lm.y, lm.z])
+
+        return np.array(landmarks).flatten()
 
 
 # ===============================
-# LOAD FACE DATABASE
+# LOAD DATABASE FACES
 # ===============================
 
 def load_known_faces():
@@ -221,16 +228,15 @@ def load_known_faces():
     names = []
 
     if response.data:
-
         for row in response.data:
-            encodings.append(np.array(row["encoding"], dtype=float))
+            encodings.append(np.array(row["encoding"]))
             names.append(row["name"])
 
     return encodings, names
 
 
 # ===============================
-# FACE RECOGNITION (IMPROVED)
+# RECOGNITION
 # ===============================
 
 def recognize_face(image_np):
@@ -240,37 +246,25 @@ def recognize_face(image_np):
     if len(known_encodings) == 0:
         return "No registered faces"
 
-    if not detect_face(image_np):
+    embedding = extract_face_embedding(image_np)
+
+    if embedding is None:
         return "No face detected"
 
-    # Better feature representation than flatten pixels
-    pil_img = Image.fromarray(image_np).convert("RGB")
-
-    # Larger resize = better accuracy
-    resized = pil_img.resize((64, 64))
-
-    face_vector = np.array(resized).astype(float).flatten()
-    face_vector = face_vector / 255.0
-
     best_distance = float("inf")
-    best_index = -1
+    best_name = None
 
-    for i, enc in enumerate(known_encodings):
+    for enc, name in zip(known_encodings, known_names):
 
-        enc = np.array(enc, dtype=float)
+        enc = np.resize(enc, len(embedding))
 
-        # Normalize dimension mismatch safely
-        if len(enc) != len(face_vector):
-            enc = np.resize(enc, len(face_vector))
-
-        dist = np.linalg.norm(face_vector - enc)
+        dist = np.linalg.norm(embedding - enc)
 
         if dist < best_distance:
             best_distance = dist
-            best_index = i
+            best_name = name
 
-    # Tighter threshold = better security
-    if best_distance < 25:
-        return f"Welcome {known_names[best_index]}"
+    if best_distance < 0.5:
+        return f"Welcome {best_name}"
 
     return "Face not recognized"
