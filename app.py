@@ -199,7 +199,7 @@ if menu == "Register Face":
                     supabase.storage.from_("faces").upload(
                         f"{name}.png",
                         f,
-                        {"content-type": "image/jpeg"}
+                        {"content-type": "image/png"}
                     )
 
             # Save only name in table
