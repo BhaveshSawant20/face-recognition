@@ -1,4 +1,24 @@
+# Virtual environment
 venv/
+env/
+
+# Python cache
 __pycache__/
+*.pyc
+*.pyo
+
+# IDE
 .idea/
+.vscode/
+
+# Environment files
 .env
+.streamlit/secrets.toml
+
+# Service account / secret files
+serviceAccountKey.json
+*.key.json
+
+# OS files
+.DS_Store
+Thumbs.db
