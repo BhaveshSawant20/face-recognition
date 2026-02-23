@@ -288,7 +288,7 @@ if "menu_state" not in st.session_state:
     st.session_state.menu_state = None
 
 # ===============================
-# BACKGROUND STYLE
+# BACKGROUND + SIDEBAR STYLE
 # ===============================
 def add_bg(image_file):
     with open(image_file, "rb") as f:
@@ -296,12 +296,28 @@ def add_bg(image_file):
 
     st.markdown(f"""
     <style>
+
+    /* ===== MAIN BACKGROUND ===== */
     .stApp {{
         background-image: url("data:image/png;base64,{encoded}");
         background-size: cover;
+        background-position: center;
         background-attachment: fixed;
     }}
 
+    /* ===== SIDEBAR MATCH BACKGROUND ===== */
+    section[data-testid="stSidebar"] {{
+        background-image: url("data:image/png;base64,{encoded}") !important;
+        background-size: cover !important;
+        background-position: center !important;
+    }}
+
+    section[data-testid="stSidebar"] > div {{
+        background: rgba(255,255,255,0.25) !important;
+        backdrop-filter: blur(20px);
+    }}
+
+    /* ===== GLASS MAIN CONTAINER ===== */
     .block-container {{
         background: rgba(255,255,255,0.25);
         backdrop-filter: blur(20px);
@@ -314,10 +330,45 @@ def add_bg(image_file):
         color: black !important;
     }}
 
+    /* ===== INPUT FIELDS ===== */
+    input {{
+        background-color: rgba(0,0,0,0.85) !important;
+        color: white !important;
+        border-radius: 10px !important;
+    }}
+
+    /* ===== BUTTON STYLE ===== */
+    div[data-testid="stButton"] > button {{
+        width: 60%;
+        background-color: white !important;
+        color: black !important;
+        border-radius: 12px !important;
+        border: 1px solid rgba(0,0,0,0.3) !important;
+        font-weight: bold !important;
+        padding: 10px 20px !important;
+    }}
+
+    /* ===== DATAFRAME LIGHT FIX ===== */
+    div[data-testid="stDataFrame"] {{
+        background-color: white !important;
+        border-radius: 15px !important;
+    }}
+
     div[data-testid="stDataFrame"] table {{
         background-color: white !important;
         color: black !important;
     }}
+
+    div[data-testid="stDataFrame"] th {{
+        background-color: #f2f2f2 !important;
+        color: black !important;
+    }}
+
+    div[data-testid="stDataFrame"] td {{
+        background-color: white !important;
+        color: black !important;
+    }}
+
     </style>
     """, unsafe_allow_html=True)
 
@@ -347,7 +398,7 @@ if st.session_state.menu_state != menu:
     st.rerun()
 
 # ===============================
-# REGISTER
+# REGISTER FACE
 # ===============================
 if menu == "Register Face":
     st.header("📌 Register Student")
@@ -377,7 +428,7 @@ if menu == "Register Face":
                 "image_path": filename
             }).execute()
 
-            st.success("Student Registered Successfully")
+            st.success("✅ Student Registered Successfully")
 
 # ===============================
 # MARK ATTENDANCE
@@ -402,7 +453,6 @@ if menu == "Mark Attendance":
             st.warning("Capture image and enter roll number")
             st.stop()
 
-        # Save temp image
         img = Image.open(image).convert("RGB")
         with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
             img.save(tmp.name)
@@ -418,9 +468,7 @@ if menu == "Mark Attendance":
             st.error("Roll number mismatch ❌")
             st.stop()
 
-        # ===============================
-        # COOLDOWN CHECK (45 MIN ALL SUBJECTS)
-        # ===============================
+        # ===== COOLDOWN 45 MINUTES (ALL SUBJECTS) =====
         last_record = supabase.table("attendance") \
             .select("*") \
             .eq("roll_no", recognized_roll) \
@@ -438,9 +486,7 @@ if menu == "Mark Attendance":
                 st.error(f"⏳ Cooldown active. Try again after {int(45-diff)} minutes.")
                 st.stop()
 
-        # ===============================
-        # SAME SUBJECT SAME DAY CHECK
-        # ===============================
+        # ===== SAME SUBJECT SAME DAY CHECK =====
         today = now.date().isoformat()
 
         duplicate = supabase.table("attendance") \
@@ -454,9 +500,7 @@ if menu == "Mark Attendance":
             st.error("Attendance already marked for this subject today ❌")
             st.stop()
 
-        # ===============================
-        # INSERT
-        # ===============================
+        # ===== INSERT =====
         supabase.table("attendance").insert({
             "roll_no": recognized_roll,
             "name": recognized_name,
@@ -493,7 +537,7 @@ if menu == "View Attendance":
             tooltip=["Subject", "Count"]
         ).properties(background="white")
 
-        # Remove black Vega buttons
+        # Remove dark Vega toolbar
         st.altair_chart(chart, use_container_width=True, theme=None)
 
     else:
