@@ -235,6 +235,7 @@ def add_bg_from_local(image_file):
     st.markdown(
         f"""
         <style>
+
         .stApp {{
             background-image: url("data:image/png;base64,{encoded_string}");
             background-size: cover;
@@ -248,6 +249,7 @@ def add_bg_from_local(image_file):
             background-size: cover;
         }}
 
+        /* MAIN GLASS CONTAINER */
         .block-container {{
             background: rgba(255, 255, 255, 0.25);
             backdrop-filter: blur(20px);
@@ -259,6 +261,7 @@ def add_bg_from_local(image_file):
             color: black !important;
         }}
 
+        /* Force BLACK text inside main container */
         .block-container h1,
         .block-container h2,
         .block-container h3,
@@ -270,32 +273,48 @@ def add_bg_from_local(image_file):
             color: black !important;
         }}
 
+        /* INPUT BOX STYLE */
         input, textarea {{
-            background-color: rgba(0,0,0,0.75) !important;
+            background-color: rgba(0,0,0,0.85) !important;
             color: white !important;
             border-radius: 10px !important;
             border: 1px solid rgba(255,255,255,0.4) !important;
         }}
 
-        div.stButton {{
+        /* CAMERA BUTTON FIX (Take Photo / Clear Photo) */
+        button[kind="secondary"] {{
+            color: white !important;
+        }}
+
+        div[data-testid="stCameraInput"] button {{
+            color: white !important;
+        }}
+
+        div[data-testid="stCameraInput"] {{
+            color: white !important;
+        }}
+
+        /* CENTER MAIN BUTTONS */
+        div[data-testid="stButton"] {{
             display: flex;
             justify-content: center;
         }}
 
-        .stButton>button {{
+        div[data-testid="stButton"] > button {{
             border-radius: 12px;
             border: 1px solid rgba(0,0,0,0.3);
             background: rgba(255,255,255,0.6);
             backdrop-filter: blur(10px);
-            color: black;
+            color: black !important;
             font-weight: bold;
             padding: 10px 30px;
         }}
 
-        .stButton>button:hover {{
+        div[data-testid="stButton"] > button:hover {{
             background: rgba(255,255,255,0.85);
         }}
 
+        /* GLASS TABLE */
         .stDataFrame {{
             background: rgba(255,255,255,0.35) !important;
             backdrop-filter: blur(10px);
@@ -303,6 +322,7 @@ def add_bg_from_local(image_file):
             padding: 10px;
             color: black !important;
         }}
+
         </style>
         """,
         unsafe_allow_html=True
