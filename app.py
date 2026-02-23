@@ -279,108 +279,65 @@ load_dotenv()
 st.set_page_config(page_title="AI Attendance System", layout="centered")
 
 # ===============================
-# BACKGROUND + GLASS STYLE
+# BACKGROUND + GLASS UI
 # ===============================
 def add_bg_from_local(image_file):
     with open(image_file, "rb") as f:
         encoded_string = base64.b64encode(f.read()).decode()
 
-    st.markdown(
-        f"""
+    st.markdown(f"""
         <style>
 
         .stApp {{
             background-image: url("data:image/png;base64,{encoded_string}");
             background-size: cover;
             background-position: center;
-            background-repeat: no-repeat;
             background-attachment: fixed;
         }}
 
-        section[data-testid="stSidebar"] {{
-            background-image: url("data:image/png;base64,{encoded_string}");
-            background-size: cover;
-        }}
-
-        /* MAIN GLASS CONTAINER */
         .block-container {{
-            background: rgba(255, 255, 255, 0.25);
+            background: rgba(255,255,255,0.25);
             backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
             border-radius: 25px;
-            border: 1px solid rgba(255,255,255,0.4);
             padding: 2.5rem;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
             color: black !important;
         }}
 
-        /* Force BLACK text */
-        .block-container h1,
-        .block-container h2,
-        .block-container h3,
-        .block-container h4,
-        .block-container p,
-        .block-container label,
-        .block-container span,
-        .block-container div {{
+        /* FORCE BLACK TEXT */
+        .block-container h1, .block-container h2,
+        .block-container h3, .block-container p,
+        .block-container label, .block-container span {{
             color: black !important;
         }}
 
-        /* INPUT BOX STYLE */
-        input, textarea {{
+        /* INPUT BOX */
+        input {{
             background-color: rgba(0,0,0,0.85) !important;
             color: white !important;
             border-radius: 10px !important;
-            border: 1px solid rgba(255,255,255,0.4) !important;
         }}
 
-        /* ===== STRONG CAMERA FIX ===== */
-
+        /* CAMERA BUTTON FIX */
         div[data-testid="stCameraInput"] *,
         div[data-testid="stCameraInput"] button,
-        div[data-testid="stCameraInput"] button span,
-        div[data-testid="stCameraInput"] button p,
-        div[data-testid="stCameraInput"] button div {{
+        div[data-testid="stCameraInput"] button span {{
             color: white !important;
         }}
 
-        div[data-testid="stCameraInput"] button[kind="secondary"] {{
-            color: white !important;
-        }}
-
-        /* CENTER MAIN BUTTONS */
+        /* CENTER BUTTONS */
         div[data-testid="stButton"] {{
             display: flex;
             justify-content: center;
         }}
 
         div[data-testid="stButton"] > button {{
-            border-radius: 12px;
-            border: 1px solid rgba(0,0,0,0.3);
-            background: rgba(255,255,255,0.6);
-            backdrop-filter: blur(10px);
-            color: black !important;
+            width: 60%;
             font-weight: bold;
-            padding: 10px 30px;
-        }}
-
-        div[data-testid="stButton"] > button:hover {{
-            background: rgba(255,255,255,0.85);
-        }}
-
-        /* GLASS TABLE */
-        .stDataFrame {{
-            background: rgba(255,255,255,0.35) !important;
-            backdrop-filter: blur(10px);
-            border-radius: 15px;
-            padding: 10px;
-            color: black !important;
+            border-radius: 12px;
         }}
 
         </style>
-        """,
-        unsafe_allow_html=True
-    )
+    """, unsafe_allow_html=True)
 
 add_bg_from_local("background.jpg")
 
@@ -399,7 +356,7 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # ===============================
-# SIDEBAR
+# SIDEBAR MENU
 # ===============================
 menu = st.sidebar.selectbox(
     "Choose Mode",
@@ -407,7 +364,7 @@ menu = st.sidebar.selectbox(
 )
 
 # ===============================
-# REGISTER
+# REGISTER FACE
 # ===============================
 if menu == "Register Face":
     st.header("📌 Register New Student")
@@ -416,9 +373,7 @@ if menu == "Register Face":
     roll_no_input = st.text_input("Enter Roll No")
     image_buffer = st.camera_input("Capture Face")
 
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        register_clicked = st.button("Register Student", use_container_width=True)
+    register_clicked = st.button("Register Student")
 
     if register_clicked:
         if not full_name or not roll_no_input or not image_buffer:
@@ -427,11 +382,14 @@ if menu == "Register Face":
             name = full_name.strip()
             roll_no = roll_no_input.strip()
 
-            existing = supabase.table("faces_data").select("*").eq("roll_no", roll_no).execute()
+            existing = supabase.table("faces_data") \
+                .select("*") \
+                .eq("roll_no", roll_no) \
+                .execute()
 
             if existing.data:
                 existing_name = existing.data[0]["name"]
-                st.error(f"❌ Student '{existing_name}' is already registered with Roll No {roll_no}")
+                st.error(f"❌ Student '{existing_name}' already exists.")
             else:
                 image = Image.open(image_buffer).convert("RGB")
                 filename = f"{roll_no}_{name}.png"
@@ -469,9 +427,7 @@ if menu == "Mark Attendance":
     subjects = ["SPCC", "CSS", "MC", "AI", "IOT", "CC", "MINI PROJECT"]
     subject = st.radio("Select Lecture", subjects, horizontal=True)
 
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        mark_clicked = st.button("Mark Attendance", use_container_width=True)
+    mark_clicked = st.button("Mark Attendance")
 
     if mark_clicked:
         if not image_buffer or not roll_no_input:
@@ -486,9 +442,34 @@ if menu == "Mark Attendance":
 
             if not recognized_name:
                 st.error(message)
+
+            elif recognized_roll != roll_no_input.strip():
+                st.error("Roll number does not match recognized face ❌")
+
             else:
+                # ===== 45 MINUTE COOLDOWN CHECK =====
+                last_record = supabase.table("attendance") \
+                    .select("*") \
+                    .eq("roll_no", recognized_roll) \
+                    .order("marked_at", desc=True) \
+                    .limit(1) \
+                    .execute()
+
+                if last_record.data:
+                    last_time = datetime.datetime.fromisoformat(
+                        last_record.data[0]["marked_at"]
+                    )
+
+                    time_difference = (now - last_time).total_seconds() / 60
+
+                    if time_difference < 45:
+                        remaining = 45 - int(time_difference)
+                        st.error(f"⏳ You must wait {remaining} more minutes before marking again.")
+                        st.stop()
+
+                # ===== INSERT ATTENDANCE =====
                 supabase.table("attendance").insert({
-                    "roll_no": roll_no_input,
+                    "roll_no": recognized_roll,
                     "name": recognized_name,
                     "subject": subject,
                     "date": now.date().isoformat(),
@@ -504,15 +485,16 @@ if menu == "Mark Attendance":
 if menu == "View Attendance":
     st.header("📊 Attendance Dashboard")
 
-    data = supabase.table("attendance").select("*").order("marked_at", desc=True).execute()
+    data = supabase.table("attendance") \
+        .select("*") \
+        .order("marked_at", desc=True) \
+        .execute()
 
     if data.data:
         df = pd.DataFrame(data.data)
-
-        st.subheader("📋 Attendance Records")
         st.dataframe(df, use_container_width=True)
 
-        st.subheader("📊 Attendance Analytics")
+        st.subheader("📊 Subject Wise Attendance")
         subject_count = df["subject"].value_counts()
         st.bar_chart(subject_count)
     else:
