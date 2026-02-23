@@ -296,7 +296,7 @@ def add_bg_from_local(image_file):
         unsafe_allow_html=True
     )
 
-add_bg_from_local("background.png")
+add_bg_from_local("background.jpg")
 
 st.title("🎯 AI Face Attendance System")
 
