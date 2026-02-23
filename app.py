@@ -91,6 +91,37 @@ def add_bg_from_local(image_file):
             color: black !important;
         }}
 
+/* Style Streamlit buttons */
+    div[data-testid="stButton"] > button {
+        display: inline-block !important;
+        margin: 0 auto !important;
+        width: 60%;
+        background-color: white !important;
+        color: black !important;
+        border-radius: 12px !important;
+        border: 1px solid rgba(0,0,0,0.3) !important;
+        font-weight: bold !important;
+        padding: 10px 20px !important;
+        transition: all 0.2s ease-in-out;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+
+    /* Hover effect */
+    div[data-testid="stButton"] > button:hover {
+        background-color: #f0f0f0 !important;
+        color: black !important;
+        box-shadow: 0 6px 10px rgba(0,0,0,0.15);
+        transform: translateY(-2px);
+    }
+
+    /* Click / active effect */
+    div[data-testid="stButton"] > button:active {
+        background-color: #e0e0e0 !important;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        transform: translateY(1px);
+    }
+
+
         </style>
     """, unsafe_allow_html=True)
 
