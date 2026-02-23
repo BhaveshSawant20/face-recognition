@@ -362,7 +362,12 @@ if menu == "Register Face":
     roll_no_input = st.text_input("Enter Roll No")
     image_buffer = st.camera_input("Capture Face")
 
-    if st.button("Register Student"):
+    col1, col2, col3 = st.columns([1, 2, 1])
+
+    with col2:
+        register_clicked = st.button("Register Student", use_container_width=True)
+
+    if register_clicked:
         if not full_name or not roll_no_input or not image_buffer:
             st.warning("Fill all fields and capture image")
         else:
@@ -411,7 +416,12 @@ if menu == "Mark Attendance":
     subjects = ["SPCC", "CSS", "MC", "AI", "IOT", "CC", "MINI PROJECT"]
     subject = st.radio("Select Lecture", subjects, horizontal=True)
 
-    if st.button("Mark Attendance"):
+    col1, col2, col3 = st.columns([1, 2, 1])
+
+    with col2:
+        mark_clicked = st.button("Mark Attendance", use_container_width=True)
+
+    if mark_clicked:
         if not image_buffer or not roll_no_input:
             st.warning("Capture image and enter roll number")
         else:
