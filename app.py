@@ -313,10 +313,7 @@ def add_bg_from_local(image_file):
             color: black !important;
         }}
 
-        .block-container h1, .block-container h2,
-        .block-container h3, .block-container h4,
-        .block-container p, .block-container label,
-        .block-container span, .block-container div {{
+        .block-container * {{
             color: black !important;
         }}
 
@@ -326,20 +323,12 @@ def add_bg_from_local(image_file):
             border-radius: 10px !important;
         }}
 
-        button[kind="secondary"],
-        div[data-testid="stCameraInput"] *,
-        div[data-testid="stCameraInput"] button,
-        div[data-testid="stCameraInput"] button span {{
-            color: white !important;
-        }}
-
+        /* WHITE MAIN BUTTONS */
         div[data-testid="stButton"] {{
             text-align: center !important;
         }}
 
         div[data-testid="stButton"] > button {{
-            display: inline-block !important;
-            margin: 0 auto !important;
             width: 60%;
             background-color: white !important;
             color: black !important;
@@ -349,13 +338,8 @@ def add_bg_from_local(image_file):
             padding: 10px 20px !important;
         }}
 
-        div[data-testid="stButton"] > button:hover {{
-            background-color: white !important;
-            color: black !important;
-        }}
-
         /* ===============================
-           LIGHT DATAFRAME FIX
+           DATAFRAME LIGHT FIX
         =============================== */
 
         div[data-testid="stDataFrame"] {{
@@ -378,7 +362,6 @@ def add_bg_from_local(image_file):
             color: black !important;
         }}
 
-        /* Toolbar buttons */
         div[data-testid="stDataFrame"] button {{
             background-color: #f2f2f2 !important;
             color: black !important;
@@ -391,7 +374,7 @@ def add_bg_from_local(image_file):
         }}
 
         /* ===============================
-           LIGHT CHART FIX
+           ALTAIR CHART LIGHT FIX
         =============================== */
 
         div[data-testid="stChart"] {{
@@ -400,16 +383,27 @@ def add_bg_from_local(image_file):
             padding: 10px !important;
         }}
 
-        .js-plotly-plot .plotly {{
+        .vega-embed {{
             background-color: white !important;
         }}
 
-        .modebar-btn {{
-            background-color: #f2f2f2 !important;
+        .vega-embed details {{
+            background-color: white !important;
         }}
 
-        .modebar-btn svg {{
-            fill: black !important;
+        /* Show Data + Fullscreen buttons */
+        .vega-embed .vega-actions a {{
+            background-color: #f2f2f2 !important;
+            color: black !important;
+            border: 1px solid #ddd !important;
+            border-radius: 6px !important;
+            padding: 4px 8px !important;
+            text-decoration: none !important;
+        }}
+
+        .vega-embed .vega-actions a:hover {{
+            background-color: #e6e6e6 !important;
+            color: black !important;
         }}
 
         </style>
@@ -463,8 +457,7 @@ if menu == "Register Face":
             existing = supabase.table("faces_data").select("*").eq("roll_no", roll_no).execute()
 
             if existing.data:
-                existing_name = existing.data[0]["name"]
-                st.error(f"❌ Student '{existing_name}' is already registered.")
+                st.error(f"❌ Student '{existing.data[0]['name']}' is already registered.")
             else:
                 image = Image.open(image_buffer).convert("RGB")
                 filename = f"{roll_no}_{name}.png"
@@ -519,22 +512,9 @@ if menu == "Mark Attendance":
 
             if not recognized_name:
                 st.error(message)
-
             elif recognized_roll != roll_no_input.strip():
                 st.error("Roll number does not match recognized face ❌")
-
             else:
-                last_record = supabase.table("attendance").select("*").eq("roll_no", recognized_roll).order("marked_at", desc=True).limit(1).execute()
-
-                if last_record.data:
-                    last_time = datetime.datetime.fromisoformat(last_record.data[0]["marked_at"])
-                    time_difference = (now - last_time).total_seconds() / 60
-
-                    if time_difference < 45:
-                        remaining = 45 - int(time_difference)
-                        st.error(f"⏳ You must wait {remaining} more minutes before marking attendance again.")
-                        st.stop()
-
                 supabase.table("attendance").insert({
                     "roll_no": recognized_roll,
                     "name": recognized_name,
