@@ -271,6 +271,7 @@ from supabase import create_client
 import tempfile
 import pytz
 import base64
+import altair as alt
 
 from main import identify_person
 
@@ -281,135 +282,46 @@ load_dotenv()
 st.set_page_config(page_title="AI Attendance System", layout="centered")
 
 # ===============================
-# BACKGROUND + GLASS STYLE
+# SESSION STATE (AUTO CLEAR CAMERA)
 # ===============================
-def add_bg_from_local(image_file):
+if "menu_state" not in st.session_state:
+    st.session_state.menu_state = None
+
+# ===============================
+# BACKGROUND STYLE
+# ===============================
+def add_bg(image_file):
     with open(image_file, "rb") as f:
-        encoded_string = base64.b64encode(f.read()).decode()
+        encoded = base64.b64encode(f.read()).decode()
 
     st.markdown(f"""
-        <style>
+    <style>
+    .stApp {{
+        background-image: url("data:image/png;base64,{encoded}");
+        background-size: cover;
+        background-attachment: fixed;
+    }}
 
-        .stApp {{
-            background-image: url("data:image/png;base64,{encoded_string}");
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-            background-attachment: fixed;
-        }}
+    .block-container {{
+        background: rgba(255,255,255,0.25);
+        backdrop-filter: blur(20px);
+        border-radius: 25px;
+        padding: 2rem;
+        color: black !important;
+    }}
 
-        section[data-testid="stSidebar"] {{
-            background-image: url("data:image/png;base64,{encoded_string}");
-            background-size: cover;
-        }}
+    .block-container * {{
+        color: black !important;
+    }}
 
-        .block-container {{
-            background: rgba(255,255,255,0.25);
-            backdrop-filter: blur(20px);
-            border-radius: 25px;
-            border: 1px solid rgba(255,255,255,0.4);
-            padding: 2.5rem;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
-            color: black !important;
-        }}
-
-        .block-container * {{
-            color: black !important;
-        }}
-
-        input, textarea {{
-            background-color: rgba(0,0,0,0.85) !important;
-            color: white !important;
-            border-radius: 10px !important;
-        }}
-
-        /* WHITE MAIN BUTTONS */
-        div[data-testid="stButton"] {{
-            text-align: center !important;
-        }}
-
-        div[data-testid="stButton"] > button {{
-            width: 60%;
-            background-color: white !important;
-            color: black !important;
-            border-radius: 12px !important;
-            border: 1px solid rgba(0,0,0,0.3) !important;
-            font-weight: bold !important;
-            padding: 10px 20px !important;
-        }}
-
-        /* ===============================
-           DATAFRAME LIGHT FIX
-        =============================== */
-
-        div[data-testid="stDataFrame"] {{
-            background-color: white !important;
-            border-radius: 15px !important;
-        }}
-
-        div[data-testid="stDataFrame"] table {{
-            background-color: white !important;
-            color: black !important;
-        }}
-
-        div[data-testid="stDataFrame"] th {{
-            background-color: #f2f2f2 !important;
-            color: black !important;
-        }}
-
-        div[data-testid="stDataFrame"] td {{
-            background-color: white !important;
-            color: black !important;
-        }}
-
-        div[data-testid="stDataFrame"] button {{
-            background-color: #f2f2f2 !important;
-            color: black !important;
-            border-radius: 8px !important;
-            border: 1px solid #ddd !important;
-        }}
-
-        div[data-testid="stDataFrame"] svg {{
-            fill: black !important;
-        }}
-
-        /* ===============================
-           ALTAIR CHART LIGHT FIX
-        =============================== */
-
-        div[data-testid="stChart"] {{
-            background-color: white !important;
-            border-radius: 15px !important;
-            padding: 10px !important;
-        }}
-
-        .vega-embed {{
-            background-color: white !important;
-        }}
-
-        .vega-embed details {{
-            background-color: white !important;
-        }}
-
-        /* Show Data + Fullscreen buttons */
-        .vega-embed .vega-actions a {{
-            background-color: #f2f2f2 !important;
-            color: black !important;
-            border: 1px solid #ddd !important;
-            border-radius: 6px !important;
-            padding: 4px 8px !important;
-            text-decoration: none !important;
-        }}
-
-        .vega-embed .vega-actions a:hover {{
-            background-color: #e6e6e6 !important;
-            color: black !important;
-        }}
-
-        </style>
+    div[data-testid="stDataFrame"] table {{
+        background-color: white !important;
+        color: black !important;
+    }}
+    </style>
     """, unsafe_allow_html=True)
 
-add_bg_from_local("background.jpg")
+add_bg("background.jpg")
 
 st.title("🎯 AI Face Attendance System")
 
@@ -419,64 +331,53 @@ st.title("🎯 AI Face Attendance System")
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
-if not SUPABASE_URL or not SUPABASE_KEY:
-    st.error("Supabase environment variables missing")
-    st.stop()
-
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # ===============================
-# SIDEBAR MENU
+# MENU
 # ===============================
 menu = st.sidebar.selectbox(
     "Choose Mode",
     ["Register Face", "Mark Attendance", "View Attendance"]
 )
 
+# AUTO CLEAR CAMERA WHEN MENU CHANGES
+if st.session_state.menu_state != menu:
+    st.session_state.menu_state = menu
+    st.rerun()
+
 # ===============================
-# REGISTER FACE
+# REGISTER
 # ===============================
 if menu == "Register Face":
-    st.header("📌 Register New Student")
+    st.header("📌 Register Student")
 
-    full_name = st.text_input("Enter Full Name")
-    roll_no_input = st.text_input("Enter Roll No")
-    image_buffer = st.camera_input("Capture Face")
+    name = st.text_input("Full Name")
+    roll = st.text_input("Roll No")
+    image = st.camera_input("Capture Face")
 
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        register_clicked = st.button("Register Student", use_container_width=True)
-
-    if register_clicked:
-        if not full_name or not roll_no_input or not image_buffer:
-            st.warning("Fill all fields and capture image")
+    if st.button("Register Student"):
+        if not name or not roll or not image:
+            st.warning("Fill all fields")
         else:
-            name = full_name.strip()
-            roll_no = roll_no_input.strip()
+            img = Image.open(image).convert("RGB")
+            filename = f"{roll}_{name}.png"
 
-            existing = supabase.table("faces_data").select("*").eq("roll_no", roll_no).execute()
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
+                img.save(tmp.name)
+                with open(tmp.name, "rb") as f:
+                    supabase.storage.from_("faces").upload(
+                        filename, f,
+                        {"content-type": "image/png", "upsert": "true"}
+                    )
 
-            if existing.data:
-                st.error(f"❌ Student '{existing.data[0]['name']}' is already registered.")
-            else:
-                image = Image.open(image_buffer).convert("RGB")
-                filename = f"{roll_no}_{name}.png"
+            supabase.table("faces_data").insert({
+                "name": name,
+                "roll_no": roll,
+                "image_path": filename
+            }).execute()
 
-                with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
-                    image.save(tmp.name)
-                    with open(tmp.name, "rb") as f:
-                        supabase.storage.from_("faces").upload(
-                            filename, f,
-                            {"content-type": "image/png", "upsert": "true"}
-                        )
-
-                supabase.table("faces_data").insert({
-                    "name": name,
-                    "roll_no": roll_no,
-                    "image_path": filename
-                }).execute()
-
-                st.success(f"✅ Student {name} registered successfully!")
+            st.success("Student Registered Successfully")
 
 # ===============================
 # MARK ATTENDANCE
@@ -487,44 +388,85 @@ if menu == "Mark Attendance":
     ist = pytz.timezone("Asia/Kolkata")
     now = datetime.datetime.now(ist)
 
-    st.write(f"📅 {now.strftime('%d-%m-%Y')}  ⏰ {now.strftime('%H:%M:%S')}")
+    st.write(f"📅 {now.strftime('%d-%m-%Y')} ⏰ {now.strftime('%H:%M:%S')}")
 
-    image_buffer = st.camera_input("Capture Face")
-    roll_no_input = st.text_input("Enter Roll No")
+    image = st.camera_input("Capture Face")
+    roll_input = st.text_input("Enter Roll No")
 
     subjects = ["SPCC", "CSS", "MC", "AI", "IOT", "CC", "MINI PROJECT"]
     subject = st.radio("Select Lecture", subjects, horizontal=True)
 
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        mark_clicked = st.button("Mark Attendance", use_container_width=True)
+    if st.button("Mark Attendance"):
 
-    if mark_clicked:
-        if not image_buffer or not roll_no_input:
+        if not image or not roll_input:
             st.warning("Capture image and enter roll number")
-        else:
-            image = Image.open(image_buffer).convert("RGB")
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
-                image.save(tmp.name)
-                temp_path = tmp.name
+            st.stop()
 
-            recognized_name, recognized_roll, message = identify_person(temp_path)
+        # Save temp image
+        img = Image.open(image).convert("RGB")
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
+            img.save(tmp.name)
+            temp_path = tmp.name
 
-            if not recognized_name:
-                st.error(message)
-            elif recognized_roll != roll_no_input.strip():
-                st.error("Roll number does not match recognized face ❌")
-            else:
-                supabase.table("attendance").insert({
-                    "roll_no": recognized_roll,
-                    "name": recognized_name,
-                    "subject": subject,
-                    "date": now.date().isoformat(),
-                    "time": now.strftime("%H:%M:%S"),
-                    "marked_at": now.isoformat()
-                }).execute()
+        recognized_name, recognized_roll, message = identify_person(temp_path)
 
-                st.success(f"✅ Attendance marked for {recognized_name} ({subject})")
+        if not recognized_name:
+            st.error(message)
+            st.stop()
+
+        if recognized_roll != roll_input.strip():
+            st.error("Roll number mismatch ❌")
+            st.stop()
+
+        # ===============================
+        # COOLDOWN CHECK (45 MIN ALL SUBJECTS)
+        # ===============================
+        last_record = supabase.table("attendance") \
+            .select("*") \
+            .eq("roll_no", recognized_roll) \
+            .order("marked_at", desc=True) \
+            .limit(1) \
+            .execute()
+
+        if last_record.data:
+            last_time = datetime.datetime.fromisoformat(
+                last_record.data[0]["marked_at"]
+            )
+            diff = (now - last_time).total_seconds() / 60
+
+            if diff < 45:
+                st.error(f"⏳ Cooldown active. Try again after {int(45-diff)} minutes.")
+                st.stop()
+
+        # ===============================
+        # SAME SUBJECT SAME DAY CHECK
+        # ===============================
+        today = now.date().isoformat()
+
+        duplicate = supabase.table("attendance") \
+            .select("*") \
+            .eq("roll_no", recognized_roll) \
+            .eq("subject", subject) \
+            .eq("date", today) \
+            .execute()
+
+        if duplicate.data:
+            st.error("Attendance already marked for this subject today ❌")
+            st.stop()
+
+        # ===============================
+        # INSERT
+        # ===============================
+        supabase.table("attendance").insert({
+            "roll_no": recognized_roll,
+            "name": recognized_name,
+            "subject": subject,
+            "date": today,
+            "time": now.strftime("%H:%M:%S"),
+            "marked_at": now.isoformat()
+        }).execute()
+
+        st.success(f"✅ Attendance marked for {recognized_name}")
 
 # ===============================
 # VIEW ATTENDANCE
@@ -537,11 +479,22 @@ if menu == "View Attendance":
     if data.data:
         df = pd.DataFrame(data.data)
 
-        st.subheader("📋 Attendance Records")
+        st.subheader("📋 Records")
         st.dataframe(df, use_container_width=True)
 
-        st.subheader("📊 Subject Wise Attendance")
-        subject_count = df["subject"].value_counts()
-        st.bar_chart(subject_count)
+        st.subheader("📊 Subject Wise Count")
+
+        subject_count = df["subject"].value_counts().reset_index()
+        subject_count.columns = ["Subject", "Count"]
+
+        chart = alt.Chart(subject_count).mark_bar().encode(
+            x="Subject",
+            y="Count",
+            tooltip=["Subject", "Count"]
+        ).properties(background="white")
+
+        # Remove black Vega buttons
+        st.altair_chart(chart, use_container_width=True, theme=None)
+
     else:
         st.info("No attendance records found")
