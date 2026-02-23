@@ -24,84 +24,9 @@ def add_bg_from_local(image_file):
     with open(image_file, "rb") as f:
         encoded_string = base64.b64encode(f.read()).decode()
 
-    # st.markdown(f"""
-    #     <style>
-    #
-    #     .stApp {{
-    #         background-image: url("data:image/png;base64,{encoded_string}");
-    #         background-size: cover;
-    #         background-position: center;
-    #         background-repeat: no-repeat;
-    #         background-attachment: fixed;
-    #     }}
-    #
-    #     section[data-testid="stSidebar"] {{
-    #         background-image: url("data:image/png;base64,{encoded_string}");
-    #         background-size: cover;
-    #     }}
-    #
-    #     .block-container {{
-    #         background: rgba(255,255,255,0.25);
-    #         backdrop-filter: blur(20px);
-    #         border-radius: 25px;
-    #         border: 1px solid rgba(255,255,255,0.4);
-    #         padding: 2.5rem;
-    #         box-shadow: 0 8px 32px rgba(0,0,0,0.2);
-    #         color: black !important;
-    #     }}
-    #
-    #     .block-container h1, .block-container h2,
-    #     .block-container h3, .block-container h4,
-    #     .block-container p, .block-container label,
-    #     .block-container span, .block-container div {{
-    #         color: black !important;
-    #     }}
-    #
-    #     input, textarea {{
-    #         background-color: rgba(0,0,0,0.85) !important;
-    #         color: white !important;
-    #         border-radius: 10px !important;
-    #     }}
-    #
-    #     button[kind="secondary"],
-    #     div[data-testid="stCameraInput"] *,
-    #     div[data-testid="stCameraInput"] button,
-    #     div[data-testid="stCameraInput"] button span {{
-    #         color: white !important;
-    #     }}
-    #
-    #     div[data-testid="stButton"] {{
-    #         text-align: center !important;
-    #     }}
-    #
-    #     div[data-testid="stButton"] > button {{
-    #         display: inline-block !important;
-    #         margin: 0 auto !important;
-    #         width: 60%;
-    #         background-color: white !important;
-    #         color: black !important;
-    #         border-radius: 12px !important;
-    #         border: 1px solid rgba(0,0,0,0.3) !important;
-    #         font-weight: bold !important;
-    #         padding: 10px 20px !important;
-    #     }}
-    #
-    #     div[data-testid="stButton"] > button:hover {{
-    #         background-color: white !important;
-    #         color: black !important;
-    #     }}
-    #
-    #     </style>
-    # """, unsafe_allow_html=True)
-
-def add_bg_from_local(image_file):
-    import base64
-    with open(image_file, "rb") as f:
-        encoded_string = base64.b64encode(f.read()).decode()
-
     st.markdown(f"""
         <style>
-        /* Background Image for App */
+
         .stApp {{
             background-image: url("data:image/png;base64,{encoded_string}");
             background-size: cover;
@@ -110,13 +35,11 @@ def add_bg_from_local(image_file):
             background-attachment: fixed;
         }}
 
-        /* Background for Sidebar */
         section[data-testid="stSidebar"] {{
             background-image: url("data:image/png;base64,{encoded_string}");
             background-size: cover;
         }}
 
-        /* Glass Effect Container */
         .block-container {{
             background: rgba(255,255,255,0.25);
             backdrop-filter: blur(20px);
@@ -141,10 +64,14 @@ def add_bg_from_local(image_file):
         }}
 
         button[kind="secondary"],
-        div[data-testid="stCameraInput"] * ,
+        div[data-testid="stCameraInput"] *,
         div[data-testid="stCameraInput"] button,
         div[data-testid="stCameraInput"] button span {{
             color: white !important;
+        }}
+
+        div[data-testid="stButton"] {{
+            text-align: center !important;
         }}
 
         div[data-testid="stButton"] > button {{
@@ -164,17 +91,6 @@ def add_bg_from_local(image_file):
             color: black !important;
         }}
 
-        /* ======================= */
-        /* Toolbar Icons (Dataframe & Chart) White */
-        div[role="toolbar"] button,
-        div[role="toolbar"] button svg {{
-            color: white !important;
-            fill: white !important;
-        }}
-
-        div[role="toolbar"] {{
-            background-color: rgba(0, 0, 0, 0.25) !important;
-        }}
         </style>
     """, unsafe_allow_html=True)
 
