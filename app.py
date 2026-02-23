@@ -317,23 +317,25 @@ def add_bg_from_local(image_file):
             border-radius: 10px !important;
         }}
 
-        /* CAMERA BUTTON FIX */
+        /* CAMERA BUTTON TEXT WHITE */
         div[data-testid="stCameraInput"] *,
         div[data-testid="stCameraInput"] button,
         div[data-testid="stCameraInput"] button span {{
             color: white !important;
         }}
 
-        /* CENTER BUTTONS */
+        /* ===== FORCE CENTER BUTTONS (STABLE FIX) ===== */
         div[data-testid="stButton"] {{
-            display: flex;
-            justify-content: center;
+            text-align: center !important;
         }}
 
         div[data-testid="stButton"] > button {{
+            display: inline-block !important;
+            margin: 0 auto !important;
             width: 60%;
             font-weight: bold;
             border-radius: 12px;
+            padding: 10px 20px;
         }}
 
         </style>
@@ -467,7 +469,6 @@ if menu == "Mark Attendance":
                         st.error(f"⏳ You must wait {remaining} more minutes before marking again.")
                         st.stop()
 
-                # ===== INSERT ATTENDANCE =====
                 supabase.table("attendance").insert({
                     "roll_no": recognized_roll,
                     "name": recognized_name,
