@@ -326,7 +326,6 @@ def add_bg_from_local(image_file):
             border-radius: 10px !important;
         }}
 
-        /* CAMERA BUTTON TEXT WHITE */
         button[kind="secondary"],
         div[data-testid="stCameraInput"] *,
         div[data-testid="stCameraInput"] button,
@@ -334,12 +333,10 @@ def add_bg_from_local(image_file):
             color: white !important;
         }}
 
-        /* ===== FORCE CENTER BUTTONS ===== */
         div[data-testid="stButton"] {{
             text-align: center !important;
         }}
 
-        /* ===== WHITE BUTTON STYLE ===== */
         div[data-testid="stButton"] > button {{
             display: inline-block !important;
             margin: 0 auto !important;
@@ -431,7 +428,7 @@ if menu == "Register Face":
                     "image_path": filename
                 }).execute()
 
-                st.success("Student Registered Successfully ✅")
+                st.success(f"✅ Student {name} registered successfully!")
 
 # ===============================
 # MARK ATTENDANCE
@@ -502,7 +499,7 @@ if menu == "Mark Attendance":
                     "marked_at": now.isoformat()
                 }).execute()
 
-                st.success("Attendance Marked Successfully ✅")
+                st.success(f"✅ Attendance marked for {recognized_name} ({subject})")
 
 # ===============================
 # VIEW ATTENDANCE
