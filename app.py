@@ -334,18 +334,27 @@ def add_bg_from_local(image_file):
             color: white !important;
         }}
 
-        /* FORCE CENTER BUTTONS */
+        /* ===== FORCE CENTER BUTTONS ===== */
         div[data-testid="stButton"] {{
             text-align: center !important;
         }}
 
+        /* ===== WHITE BUTTON STYLE ===== */
         div[data-testid="stButton"] > button {{
             display: inline-block !important;
             margin: 0 auto !important;
             width: 60%;
-            font-weight: bold;
-            border-radius: 12px;
-            padding: 10px 20px;
+            background-color: white !important;
+            color: black !important;
+            border-radius: 12px !important;
+            border: 1px solid rgba(0,0,0,0.3) !important;
+            font-weight: bold !important;
+            padding: 10px 20px !important;
+        }}
+
+        div[data-testid="stButton"] > button:hover {{
+            background-color: white !important;
+            color: black !important;
         }}
 
         </style>
@@ -463,7 +472,6 @@ if menu == "Mark Attendance":
                 st.error("Roll number does not match recognized face ❌")
 
             else:
-                # ===== 45 MINUTE COOLDOWN CHECK =====
                 last_record = supabase.table("attendance") \
                     .select("*") \
                     .eq("roll_no", recognized_roll) \
