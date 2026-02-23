@@ -90,7 +90,21 @@ def add_bg_from_local(image_file):
             background-color: white !important;
             color: black !important;
         }}
+        
+    /* Make DataFrame and Chart Toolbar Icons White */
+    div[role="toolbar"] button, /* toolbar buttons */
+    div[role="toolbar"] button svg, /* svg icons inside toolbar buttons */
+    div.stToolbar button, 
+    div.stToolbar button svg {
+        color: white !important;
+        fill: white !important; /* for SVG icons */
+    }
 
+    /* Optional: make the background slightly darker to enhance visibility */
+    div[role="toolbar"] {
+        background-color: rgba(0, 0, 0, 0.25) !important;
+    }
+    
         </style>
     """, unsafe_allow_html=True)
 
