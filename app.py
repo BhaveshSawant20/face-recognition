@@ -24,8 +24,7 @@
 #     with open(image_file, "rb") as f:
 #         encoded_string = base64.b64encode(f.read()).decode()
 #
-#     st.markdown(
-#         f"""
+#     st.markdown(f"""
 #         <style>
 #
 #         .stApp {{
@@ -41,11 +40,9 @@
 #             background-size: cover;
 #         }}
 #
-#         /* MAIN GLASS CONTAINER */
 #         .block-container {{
-#             background: rgba(255, 255, 255, 0.25);
+#             background: rgba(255,255,255,0.25);
 #             backdrop-filter: blur(20px);
-#             -webkit-backdrop-filter: blur(20px);
 #             border-radius: 25px;
 #             border: 1px solid rgba(255,255,255,0.4);
 #             padding: 2.5rem;
@@ -53,72 +50,49 @@
 #             color: black !important;
 #         }}
 #
-#         /* Force BLACK text inside main container */
-#         .block-container h1,
-#         .block-container h2,
-#         .block-container h3,
-#         .block-container h4,
-#         .block-container p,
-#         .block-container label,
-#         .block-container span,
-#         .block-container div {{
+#         .block-container h1, .block-container h2,
+#         .block-container h3, .block-container h4,
+#         .block-container p, .block-container label,
+#         .block-container span, .block-container div {{
 #             color: black !important;
 #         }}
 #
-#         /* INPUT BOX STYLE */
 #         input, textarea {{
 #             background-color: rgba(0,0,0,0.85) !important;
 #             color: white !important;
 #             border-radius: 10px !important;
-#             border: 1px solid rgba(255,255,255,0.4) !important;
 #         }}
 #
-#         /* CAMERA BUTTON FIX (Take Photo / Clear Photo) */
-#         button[kind="secondary"] {{
+#         button[kind="secondary"],
+#         div[data-testid="stCameraInput"] *,
+#         div[data-testid="stCameraInput"] button,
+#         div[data-testid="stCameraInput"] button span {{
 #             color: white !important;
 #         }}
 #
-#         div[data-testid="stCameraInput"] button {{
-#             color: white !important;
-#         }}
-#
-#         div[data-testid="stCameraInput"] {{
-#             color: white !important;
-#         }}
-#
-#         /* CENTER MAIN BUTTONS */
 #         div[data-testid="stButton"] {{
-#             display: flex;
-#             justify-content: center;
+#             text-align: center !important;
 #         }}
 #
 #         div[data-testid="stButton"] > button {{
-#             border-radius: 12px;
-#             border: 1px solid rgba(0,0,0,0.3);
-#             background: rgba(255,255,255,0.6);
-#             backdrop-filter: blur(10px);
+#             display: inline-block !important;
+#             margin: 0 auto !important;
+#             width: 60%;
+#             background-color: white !important;
 #             color: black !important;
-#             font-weight: bold;
-#             padding: 10px 30px;
+#             border-radius: 12px !important;
+#             border: 1px solid rgba(0,0,0,0.3) !important;
+#             font-weight: bold !important;
+#             padding: 10px 20px !important;
 #         }}
 #
 #         div[data-testid="stButton"] > button:hover {{
-#             background: rgba(255,255,255,0.85);
-#         }}
-#
-#         /* GLASS TABLE */
-#         .stDataFrame {{
-#             background: rgba(255,255,255,0.35) !important;
-#             backdrop-filter: blur(10px);
-#             border-radius: 15px;
-#             padding: 10px;
+#             background-color: white !important;
 #             color: black !important;
 #         }}
 #
 #         </style>
-#         """,
-#         unsafe_allow_html=True
-#     )
+#     """, unsafe_allow_html=True)
 #
 # add_bg_from_local("background.jpg")
 #
@@ -137,7 +111,7 @@
 # supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 #
 # # ===============================
-# # SIDEBAR
+# # SIDEBAR MENU
 # # ===============================
 # menu = st.sidebar.selectbox(
 #     "Choose Mode",
@@ -145,7 +119,7 @@
 # )
 #
 # # ===============================
-# # REGISTER
+# # REGISTER FACE
 # # ===============================
 # if menu == "Register Face":
 #     st.header("📌 Register New Student")
@@ -155,7 +129,6 @@
 #     image_buffer = st.camera_input("Capture Face")
 #
 #     col1, col2, col3 = st.columns([1, 2, 1])
-#
 #     with col2:
 #         register_clicked = st.button("Register Student", use_container_width=True)
 #
@@ -166,11 +139,14 @@
 #             name = full_name.strip()
 #             roll_no = roll_no_input.strip()
 #
-#             existing = supabase.table("faces_data").select("*").eq("roll_no", roll_no).execute()
+#             existing = supabase.table("faces_data") \
+#                 .select("*") \
+#                 .eq("roll_no", roll_no) \
+#                 .execute()
 #
 #             if existing.data:
 #                 existing_name = existing.data[0]["name"]
-#                 st.error(f"❌ Student '{existing_name}' is already registered with Roll No {roll_no}")
+#                 st.error(f"❌ Student '{existing_name}' is already registered.")
 #             else:
 #                 image = Image.open(image_buffer).convert("RGB")
 #                 filename = f"{roll_no}_{name}.png"
@@ -189,7 +165,7 @@
 #                     "image_path": filename
 #                 }).execute()
 #
-#                 st.success("Student Registered Successfully ✅")
+#                 st.success(f"✅ Student {name} registered successfully!")
 #
 # # ===============================
 # # MARK ATTENDANCE
@@ -209,7 +185,6 @@
 #     subject = st.radio("Select Lecture", subjects, horizontal=True)
 #
 #     col1, col2, col3 = st.columns([1, 2, 1])
-#
 #     with col2:
 #         mark_clicked = st.button("Mark Attendance", use_container_width=True)
 #
@@ -226,9 +201,34 @@
 #
 #             if not recognized_name:
 #                 st.error(message)
+#
+#             elif recognized_roll != roll_no_input.strip():
+#                 st.error("Roll number does not match recognized face ❌")
+#
 #             else:
+#                 last_record = supabase.table("attendance") \
+#                     .select("*") \
+#                     .eq("roll_no", recognized_roll) \
+#                     .order("marked_at", desc=True) \
+#                     .limit(1) \
+#                     .execute()
+#
+#                 if last_record.data:
+#                     last_time = datetime.datetime.fromisoformat(
+#                         last_record.data[0]["marked_at"]
+#                     )
+#
+#                     time_difference = (now - last_time).total_seconds() / 60
+#
+#                     if time_difference < 45:
+#                         remaining = 45 - int(time_difference)
+#                         st.error(
+#                             f"⏳ You must wait {remaining} more minutes before marking attendance again."
+#                         )
+#                         st.stop()
+#
 #                 supabase.table("attendance").insert({
-#                     "roll_no": roll_no_input,
+#                     "roll_no": recognized_roll,
 #                     "name": recognized_name,
 #                     "subject": subject,
 #                     "date": now.date().isoformat(),
@@ -236,7 +236,7 @@
 #                     "marked_at": now.isoformat()
 #                 }).execute()
 #
-#                 st.success("Attendance Marked Successfully ✅")
+#                 st.success(f"✅ Attendance marked for {recognized_name} ({subject})")
 #
 # # ===============================
 # # VIEW ATTENDANCE
@@ -244,7 +244,10 @@
 # if menu == "View Attendance":
 #     st.header("📊 Attendance Dashboard")
 #
-#     data = supabase.table("attendance").select("*").order("marked_at", desc=True).execute()
+#     data = supabase.table("attendance") \
+#         .select("*") \
+#         .order("marked_at", desc=True) \
+#         .execute()
 #
 #     if data.data:
 #         df = pd.DataFrame(data.data)
@@ -252,14 +255,11 @@
 #         st.subheader("📋 Attendance Records")
 #         st.dataframe(df, use_container_width=True)
 #
-#         st.subheader("📊 Attendance Analytics")
+#         st.subheader("📊 Subject Wise Attendance")
 #         subject_count = df["subject"].value_counts()
 #         st.bar_chart(subject_count)
-#
 #     else:
 #         st.info("No attendance records found")
-#
-
 
 import streamlit as st
 import os
@@ -354,6 +354,64 @@ def add_bg_from_local(image_file):
             color: black !important;
         }}
 
+        /* ===============================
+           LIGHT DATAFRAME FIX
+        =============================== */
+
+        div[data-testid="stDataFrame"] {{
+            background-color: white !important;
+            border-radius: 15px !important;
+        }}
+
+        div[data-testid="stDataFrame"] table {{
+            background-color: white !important;
+            color: black !important;
+        }}
+
+        div[data-testid="stDataFrame"] th {{
+            background-color: #f2f2f2 !important;
+            color: black !important;
+        }}
+
+        div[data-testid="stDataFrame"] td {{
+            background-color: white !important;
+            color: black !important;
+        }}
+
+        /* Toolbar buttons */
+        div[data-testid="stDataFrame"] button {{
+            background-color: #f2f2f2 !important;
+            color: black !important;
+            border-radius: 8px !important;
+            border: 1px solid #ddd !important;
+        }}
+
+        div[data-testid="stDataFrame"] svg {{
+            fill: black !important;
+        }}
+
+        /* ===============================
+           LIGHT CHART FIX
+        =============================== */
+
+        div[data-testid="stChart"] {{
+            background-color: white !important;
+            border-radius: 15px !important;
+            padding: 10px !important;
+        }}
+
+        .js-plotly-plot .plotly {{
+            background-color: white !important;
+        }}
+
+        .modebar-btn {{
+            background-color: #f2f2f2 !important;
+        }}
+
+        .modebar-btn svg {{
+            fill: black !important;
+        }}
+
         </style>
     """, unsafe_allow_html=True)
 
@@ -402,10 +460,7 @@ if menu == "Register Face":
             name = full_name.strip()
             roll_no = roll_no_input.strip()
 
-            existing = supabase.table("faces_data") \
-                .select("*") \
-                .eq("roll_no", roll_no) \
-                .execute()
+            existing = supabase.table("faces_data").select("*").eq("roll_no", roll_no).execute()
 
             if existing.data:
                 existing_name = existing.data[0]["name"]
@@ -469,25 +524,15 @@ if menu == "Mark Attendance":
                 st.error("Roll number does not match recognized face ❌")
 
             else:
-                last_record = supabase.table("attendance") \
-                    .select("*") \
-                    .eq("roll_no", recognized_roll) \
-                    .order("marked_at", desc=True) \
-                    .limit(1) \
-                    .execute()
+                last_record = supabase.table("attendance").select("*").eq("roll_no", recognized_roll).order("marked_at", desc=True).limit(1).execute()
 
                 if last_record.data:
-                    last_time = datetime.datetime.fromisoformat(
-                        last_record.data[0]["marked_at"]
-                    )
-
+                    last_time = datetime.datetime.fromisoformat(last_record.data[0]["marked_at"])
                     time_difference = (now - last_time).total_seconds() / 60
 
                     if time_difference < 45:
                         remaining = 45 - int(time_difference)
-                        st.error(
-                            f"⏳ You must wait {remaining} more minutes before marking attendance again."
-                        )
+                        st.error(f"⏳ You must wait {remaining} more minutes before marking attendance again.")
                         st.stop()
 
                 supabase.table("attendance").insert({
@@ -507,10 +552,7 @@ if menu == "Mark Attendance":
 if menu == "View Attendance":
     st.header("📊 Attendance Dashboard")
 
-    data = supabase.table("attendance") \
-        .select("*") \
-        .order("marked_at", desc=True) \
-        .execute()
+    data = supabase.table("attendance").select("*").order("marked_at", desc=True).execute()
 
     if data.data:
         df = pd.DataFrame(data.data)
