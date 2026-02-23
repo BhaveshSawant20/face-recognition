@@ -245,7 +245,7 @@ def add_bg_from_local(image_file):
             background-attachment: fixed;
         }}
 
-        /* Sidebar Background */
+        /* Sidebar Background (UNCHANGED STYLE) */
         section[data-testid="stSidebar"] {{
             background-image: url("data:image/png;base64,{encoded_string}");
             background-size: cover;
@@ -255,37 +255,42 @@ def add_bg_from_local(image_file):
 
         /* GLASS CONTAINER */
         .block-container {{
-            background: rgba(255, 255, 255, 0.12);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
+            background: rgba(255, 255, 255, 0.65);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
             border-radius: 25px;
-            border: 1px solid rgba(255, 255, 255, 0.25);
+            border: 1px solid rgba(0, 0, 0, 0.1);
             padding: 2.5rem;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
         }}
 
-        /* Make text white */
-        h1, h2, h3, h4, h5, h6, p, label, div {{
-            color: white !important;
+        /* Make ALL text inside main container black */
+        .block-container * {{
+            color: black !important;
         }}
 
-        /* Sidebar text white */
-        section[data-testid="stSidebar"] * {{
-            color: white !important;
+        /* Input text fix */
+        .block-container input,
+        .block-container textarea {{
+            color: black !important;
         }}
 
-        /* Buttons Styling */
+        /* Dataframe text fix */
+        .block-container .stDataFrame {{
+            color: black !important;
+        }}
+
+        /* Button styling */
         .stButton>button {{
             border-radius: 12px;
-            border: 1px solid rgba(255,255,255,0.4);
-            background: rgba(255,255,255,0.15);
-            backdrop-filter: blur(10px);
-            color: white;
+            border: 1px solid rgba(0,0,0,0.2);
+            background: rgba(255,255,255,0.9);
+            color: black;
             font-weight: bold;
         }}
 
         .stButton>button:hover {{
-            background: rgba(255,255,255,0.25);
+            background: rgba(255,255,255,1);
         }}
         </style>
         """,
