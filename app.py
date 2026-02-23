@@ -215,9 +215,7 @@ from dotenv import load_dotenv
 from supabase import create_client
 import tempfile
 import pytz
-from dateutil import parser
 import base64
-import plotly.express as px
 
 from main import identify_person
 
@@ -228,7 +226,7 @@ load_dotenv()
 st.set_page_config(page_title="AI Attendance System", layout="centered")
 
 # ===============================
-# BACKGROUND + REAL GLASS EFFECT
+# BACKGROUND + GLASS STYLE
 # ===============================
 def add_bg_from_local(image_file):
     with open(image_file, "rb") as f:
@@ -250,63 +248,67 @@ def add_bg_from_local(image_file):
             background-size: cover;
         }}
 
-        /* REAL GLASS CONTAINER */
         .block-container {{
-            background: rgba(255, 255, 255, 0.15);
-            backdrop-filter: blur(25px);
-            -webkit-backdrop-filter: blur(25px);
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
             border-radius: 25px;
-            border: 1px solid rgba(255,255,255,0.3);
+            border: 1px solid rgba(255,255,255,0.4);
             padding: 2.5rem;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+            color: black !important;
         }}
 
-        /* Default text white */
-        .block-container * {{
-            color: white !important;
+        .block-container h1,
+        .block-container h2,
+        .block-container h3,
+        .block-container h4,
+        .block-container p,
+        .block-container label,
+        .block-container span,
+        .block-container div {{
+            color: black !important;
         }}
 
-        /* INPUT BOX STYLE */
         input, textarea {{
-            background-color: rgba(0,0,0,0.6) !important;
+            background-color: rgba(0,0,0,0.75) !important;
             color: white !important;
             border-radius: 10px !important;
             border: 1px solid rgba(255,255,255,0.4) !important;
         }}
 
-        /* Camera text */
-        label {{
-            color: white !important;
+        div.stButton {{
+            display: flex;
+            justify-content: center;
         }}
 
-        /* Buttons */
         .stButton>button {{
             border-radius: 12px;
-            border: 1px solid rgba(255,255,255,0.5);
-            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(0,0,0,0.3);
+            background: rgba(255,255,255,0.6);
             backdrop-filter: blur(10px);
-            color: white;
+            color: black;
             font-weight: bold;
+            padding: 10px 30px;
         }}
 
         .stButton>button:hover {{
-            background: rgba(255,255,255,0.35);
+            background: rgba(255,255,255,0.85);
         }}
 
-        /* Glass Table */
         .stDataFrame {{
-            background: rgba(255,255,255,0.15) !important;
+            background: rgba(255,255,255,0.35) !important;
             backdrop-filter: blur(10px);
             border-radius: 15px;
             padding: 10px;
-            color: white !important;
+            color: black !important;
         }}
         </style>
         """,
         unsafe_allow_html=True
     )
 
-add_bg_from_local("background.jpg")
+add_bg_from_local("background.png")
 
 st.title("🎯 AI Face Attendance System")
 
@@ -348,8 +350,10 @@ if menu == "Register Face":
             roll_no = roll_no_input.strip()
 
             existing = supabase.table("faces_data").select("*").eq("roll_no", roll_no).execute()
+
             if existing.data:
-                st.error("Roll number already exists")
+                existing_name = existing.data[0]["name"]
+                st.error(f"❌ Student '{existing_name}' is already registered with Roll No {roll_no}")
             else:
                 image = Image.open(image_buffer).convert("RGB")
                 filename = f"{roll_no}_{name}.png"
@@ -410,7 +414,7 @@ if menu == "Mark Attendance":
                     "marked_at": now.isoformat()
                 }).execute()
 
-                st.success("Attendance Marked ✅")
+                st.success("Attendance Marked Successfully ✅")
 
 # ===============================
 # VIEW ATTENDANCE
@@ -427,18 +431,8 @@ if menu == "View Attendance":
         st.dataframe(df, use_container_width=True)
 
         st.subheader("📊 Attendance Analytics")
-
-        subject_count = df["subject"].value_counts().reset_index()
-        subject_count.columns = ["Subject", "Count"]
-
-        fig = px.bar(subject_count, x="Subject", y="Count", text="Count")
-        fig.update_layout(
-            plot_bgcolor="rgba(0,0,0,0)",
-            paper_bgcolor="rgba(0,0,0,0)",
-            font=dict(color="white")
-        )
-
-        st.plotly_chart(fig, use_container_width=True)
+        subject_count = df["subject"].value_counts()
+        st.bar_chart(subject_count)
 
     else:
         st.info("No attendance records found")
