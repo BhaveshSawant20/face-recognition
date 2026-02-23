@@ -216,6 +216,7 @@ from supabase import create_client
 import tempfile
 import pytz
 from dateutil import parser
+import base64
 
 from main import identify_person
 
@@ -224,6 +225,49 @@ from main import identify_person
 # ===============================
 load_dotenv()
 st.set_page_config(page_title="AI Attendance System", layout="centered")
+
+# ===============================
+# BACKGROUND IMAGE SETUP
+# ===============================
+def add_bg_from_local(image_file):
+    with open(image_file, "rb") as f:
+        encoded_string = base64.b64encode(f.read()).decode()
+
+    st.markdown(
+        f"""
+        <style>
+        .stApp {{
+            background-image: url("data:image/png;base64,{encoded_string}");
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+        }}
+
+        section[data-testid="stSidebar"] {{
+            background-image: url("data:image/png;base64,{encoded_string}");
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }}
+
+        .block-container {{
+            background: rgba(0, 0, 0, 0.6);
+            padding: 2rem;
+            border-radius: 15px;
+        }}
+
+        section[data-testid="stSidebar"] * {{
+            color: white !important;
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+# Call background function
+add_bg_from_local("background.png")
+
 st.title("🎯 AI Face Attendance System")
 
 # ===============================
@@ -271,16 +315,15 @@ if menu == "Register Face":
             roll_no = roll_no_input.strip()
 
             try:
-                # Check if roll number already exists
                 existing_roll = supabase.table("faces_data").select("*").eq("roll_no", roll_no).execute()
                 if existing_roll.data:
                     st.error("Roll number already exists")
                     st.stop()
 
-                # Save image to Supabase Storage
                 with st.spinner("Registering student..."):
                     image = Image.open(image_buffer).convert("RGB")
                     filename = f"{roll_no}_{name}.png"
+
                     with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
                         image.save(tmp.name)
                         with open(tmp.name, "rb") as f:
@@ -290,7 +333,6 @@ if menu == "Register Face":
                                 {"content-type": "image/png", "upsert": "true"}
                             )
 
-                    # Insert student data
                     supabase.table("faces_data").insert({
                         "name": name,
                         "roll_no": roll_no,
@@ -298,6 +340,7 @@ if menu == "Register Face":
                     }).execute()
 
                 st.success(f"✅ Student {name} registered successfully!")
+
             except Exception as e:
                 st.error(f"Registration failed: {str(e)}")
 
@@ -306,14 +349,16 @@ if menu == "Register Face":
 # ===============================
 if menu == "Mark Attendance":
     st.header("📝 Mark Attendance")
+
     ist = pytz.timezone("Asia/Kolkata")
     now = datetime.datetime.now(ist)
+
     st.write(f"📅 Date: {now.strftime('%d-%m-%Y')}")
     st.write(f"⏰ Time: {now.strftime('%H:%M:%S')}")
 
-    # Camera input
     image_buffer = st.camera_input("Capture Face", key="attendance_camera")
     st.markdown("---")
+
     roll_no_input = st.text_input("Enter Roll No")
     st.markdown("### Select Lecture")
 
@@ -330,11 +375,8 @@ if menu == "Mark Attendance":
             st.warning("Capture image first")
         elif not roll_no_input.strip():
             st.warning("Enter roll number")
-        elif not subject:
-            st.warning("Please select a lecture")
         else:
             try:
-                # Recognize face
                 image = Image.open(image_buffer).convert("RGB")
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
                     image.save(tmp.name)
@@ -348,7 +390,6 @@ if menu == "Mark Attendance":
 
                 roll_no = roll_no_input.strip()
 
-                # Fetch student by roll_no
                 registered = supabase.table("faces_data").select("*").eq("roll_no", roll_no).execute()
                 if not registered.data:
                     st.error("❌ Roll number not registered")
@@ -360,7 +401,6 @@ if menu == "Mark Attendance":
                     st.error("❌ Face does not match the registered roll number")
                     st.stop()
 
-                # Cooldown check (45 minutes)
                 COOLDOWN_MINUTES = 45
                 last_record = supabase.table("attendance") \
                     .select("marked_at") \
@@ -379,7 +419,6 @@ if menu == "Mark Attendance":
                         st.error(f"⛔ Cooldown active. Try again after {remaining} minutes.")
                         st.stop()
 
-                # Check duplicate attendance for same lecture/date
                 existing_attendance = supabase.table("attendance") \
                     .select("*") \
                     .eq("roll_no", roll_no) \
@@ -391,7 +430,6 @@ if menu == "Mark Attendance":
                     st.warning("⚠ Attendance already marked for this lecture today")
                     st.stop()
 
-                # Insert attendance
                 supabase.table("attendance").insert({
                     "roll_no": roll_no,
                     "name": recognized_name,
@@ -411,7 +449,9 @@ if menu == "Mark Attendance":
 # ===============================
 if menu == "View Attendance":
     st.header("📊 Attendance Records")
+
     data = supabase.table("attendance").select("*").order("marked_at", desc=True).execute()
+
     if data.data:
         df = pd.DataFrame(data.data)
         st.dataframe(df, use_container_width=True)
