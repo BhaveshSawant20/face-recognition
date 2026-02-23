@@ -154,12 +154,12 @@
 #     roll_no_input = st.text_input("Enter Roll No")
 #     image_buffer = st.camera_input("Capture Face")
 #
-#     col1, col2, col3 = st.columns([1, 2, 1])
-#
-#     with col2:
-#         register_clicked = st.button("Register Student", use_container_width=True)
-#
-#     if register_clicked:
+    # col1, col2, col3 = st.columns([1, 2, 1])
+    #
+    # with col2:
+    #     register_clicked = st.button("Register Student", use_container_width=True)
+    #
+    # if register_clicked:
 #         if not full_name or not roll_no_input or not image_buffer:
 #             st.warning("Fill all fields and capture image")
 #         else:
@@ -377,6 +377,11 @@ if menu == "Register Face":
 
     register_clicked = st.button("Register Student")
 
+    col1, col2, col3 = st.columns([1, 2, 1])
+
+    with col2:
+        register_clicked = st.button("Register Student", use_container_width=True)
+
     if register_clicked:
         if not full_name or not roll_no_input or not image_buffer:
             st.warning("Fill all fields and capture image")
@@ -431,7 +436,12 @@ if menu == "Mark Attendance":
 
     mark_clicked = st.button("Mark Attendance")
 
-    if mark_clicked:
+    col1, col2, col3 = st.columns([1, 2, 1])
+
+    with col2:
+        register_clicked = st.button("Register Student", use_container_width=True)
+
+    if register_clicked:
         if not image_buffer or not roll_no_input:
             st.warning("Capture image and enter roll number")
         else:
