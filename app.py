@@ -227,7 +227,7 @@ load_dotenv()
 st.set_page_config(page_title="AI Attendance System", layout="centered")
 
 # ===============================
-# BACKGROUND + GLASS EFFECT (LIGHT THEME)
+# BACKGROUND + GLASS EFFECT
 # ===============================
 def add_bg_from_local(image_file):
     with open(image_file, "rb") as f:
@@ -253,43 +253,39 @@ def add_bg_from_local(image_file):
             background-repeat: no-repeat;
         }}
 
-        /* GLASS CONTAINER - Light */
+        /* GLASS CONTAINER */
         .block-container {{
-            background: rgba(255, 255, 255, 0.65);
-            backdrop-filter: blur(15px);
-            -webkit-backdrop-filter: blur(15px);
+            background: rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
             border-radius: 25px;
-            border: 1px solid rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.25);
             padding: 2.5rem;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
         }}
 
-        /* All text black */
-        h1, h2, h3, h4, h5, h6, p, label, div, span {{
-            color: black !important;
+        /* Make text white */
+        h1, h2, h3, h4, h5, h6, p, label, div {{
+            color: white !important;
         }}
 
-        /* Sidebar text black */
+        /* Sidebar text white */
         section[data-testid="stSidebar"] * {{
-            color: black !important;
+            color: white !important;
         }}
 
         /* Buttons Styling */
         .stButton>button {{
             border-radius: 12px;
-            border: 1px solid rgba(0,0,0,0.2);
-            background: rgba(255,255,255,0.8);
-            color: black;
+            border: 1px solid rgba(255,255,255,0.4);
+            background: rgba(255,255,255,0.15);
+            backdrop-filter: blur(10px);
+            color: white;
             font-weight: bold;
         }}
 
         .stButton>button:hover {{
-            background: rgba(255,255,255,1);
-        }}
-
-        /* Radio buttons & inputs */
-        .stRadio label {{
-            color: black !important;
+            background: rgba(255,255,255,0.25);
         }}
         </style>
         """,
