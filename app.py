@@ -227,7 +227,7 @@ load_dotenv()
 st.set_page_config(page_title="AI Attendance System", layout="centered")
 
 # ===============================
-# BACKGROUND IMAGE SETUP
+# BACKGROUND + GLASS EFFECT
 # ===============================
 def add_bg_from_local(image_file):
     with open(image_file, "rb") as f:
@@ -236,6 +236,7 @@ def add_bg_from_local(image_file):
     st.markdown(
         f"""
         <style>
+        /* Main Background */
         .stApp {{
             background-image: url("data:image/png;base64,{encoded_string}");
             background-size: cover;
@@ -244,6 +245,7 @@ def add_bg_from_local(image_file):
             background-attachment: fixed;
         }}
 
+        /* Sidebar Background */
         section[data-testid="stSidebar"] {{
             background-image: url("data:image/png;base64,{encoded_string}");
             background-size: cover;
@@ -251,22 +253,46 @@ def add_bg_from_local(image_file):
             background-repeat: no-repeat;
         }}
 
+        /* GLASS CONTAINER */
         .block-container {{
-            background: rgba(0, 0, 0, 0.6);
-            padding: 2rem;
-            border-radius: 15px;
+            background: rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            padding: 2.5rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
         }}
 
+        /* Make text white */
+        h1, h2, h3, h4, h5, h6, p, label, div {{
+            color: white !important;
+        }}
+
+        /* Sidebar text white */
         section[data-testid="stSidebar"] * {{
             color: white !important;
+        }}
+
+        /* Buttons Styling */
+        .stButton>button {{
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.4);
+            background: rgba(255,255,255,0.15);
+            backdrop-filter: blur(10px);
+            color: white;
+            font-weight: bold;
+        }}
+
+        .stButton>button:hover {{
+            background: rgba(255,255,255,0.25);
         }}
         </style>
         """,
         unsafe_allow_html=True
     )
 
-# Call background function
-add_bg_from_local("background.png")
+add_bg_from_local("background.jpg")
 
 st.title("🎯 AI Face Attendance System")
 
@@ -295,6 +321,7 @@ menu = st.sidebar.selectbox(
 # ===============================
 if menu == "Register Face":
     st.header("📌 Register New Student")
+
     full_name = st.text_input("Enter Full Name")
     roll_no_input = st.text_input("Enter Roll No")
     image_buffer = st.camera_input("Capture Face", key="register_camera")
@@ -360,10 +387,11 @@ if menu == "Mark Attendance":
     st.markdown("---")
 
     roll_no_input = st.text_input("Enter Roll No")
-    st.markdown("### Select Lecture")
 
+    st.markdown("### Select Lecture")
     subjects = ["SPCC", "CSS", "MC", "AI", "IOT", "CC", "MINI PROJECT"]
     subject = st.radio("Select Lecture", options=subjects, horizontal=True)
+
     st.markdown("---")
 
     colA, colB, colC = st.columns([1, 2, 1])
