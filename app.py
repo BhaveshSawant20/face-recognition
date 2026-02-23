@@ -419,7 +419,12 @@ if menu == "Register Face":
 
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        register_clicked = st.button("Register Student", use_container_width=True)
+        st.markdown(
+            "<div style='display: flex; justify-content: center;'>",
+            unsafe_allow_html=True
+        )
+        register_clicked = st.button("Register Student", use_container_width=False)
+        st.markdown("</div>", unsafe_allow_html=True)
 
     if register_clicked:
         if not full_name or not roll_no_input or not image_buffer:
@@ -475,7 +480,12 @@ if menu == "Mark Attendance":
 
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        mark_clicked = st.button("Mark Attendance", use_container_width=True)
+        st.markdown(
+            "<div style='display: flex; justify-content: center;'>",
+            unsafe_allow_html=True
+        )
+        mark_clicked = st.button("Mark Attendance", use_container_width=False)
+        st.markdown("</div>", unsafe_allow_html=True)
 
     if mark_clicked:
         if not image_buffer or not roll_no_input:
