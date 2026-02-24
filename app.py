@@ -285,6 +285,7 @@ import tempfile
 import pytz
 import base64
 import math
+from streamlit_geolocation import streamlit_geolocation  # ✅ ADDED
 
 from main import identify_person
 
@@ -419,7 +420,7 @@ menu = st.sidebar.selectbox(
 )
 
 # ===============================
-# REGISTER FACE
+# REGISTER FACE (UNCHANGED)
 # ===============================
 if menu == "Register Face":
     st.header("📌 Register New Student")
@@ -468,7 +469,7 @@ if menu == "Register Face":
                 st.success(f"✅ Student {name} registered successfully!")
 
 # ===============================
-# MARK ATTENDANCE
+# MARK ATTENDANCE (LOCATION FIXED)
 # ===============================
 if menu == "Mark Attendance":
     st.header("📝 Mark Attendance")
@@ -478,39 +479,21 @@ if menu == "Mark Attendance":
 
     st.write(f"📅 {now.strftime('%d-%m-%Y')}  ⏰ {now.strftime('%H:%M:%S')}")
 
-    st.info("📍 Please allow browser location access when prompted.")
+    # ✅ Proper location component
+    st.subheader("📍 Capture Location")
+    location_data = streamlit_geolocation()
 
-    # LOCATION AUTO CAPTURE (Improved + Error Handling)
-    components.html("""
-    <script>
-    function sendLocation(position) {
-        const coords = position.coords.latitude + "," + position.coords.longitude;
-        const streamlitDoc = window.parent.document;
-        const inputs = streamlitDoc.querySelectorAll('input');
+    location = None
+    if location_data and "latitude" in location_data:
+        lat = location_data["latitude"]
+        lon = location_data["longitude"]
+        location = f"{lat},{lon}"
+        st.success("✅ Location captured successfully")
+        st.write(f"Latitude: {lat}")
+        st.write(f"Longitude: {lon}")
+    else:
+        st.warning("Click the button above to capture location.")
 
-        inputs.forEach(input => {
-            if(input.placeholder && input.placeholder.includes("Location Auto Captured")){
-                input.value = coords;
-                input.dispatchEvent(new Event('input', { bubbles: true }));
-            }
-        });
-    }
-
-    function handleError(error) {
-        alert("Location access denied or failed. Please enable location permission.");
-    }
-
-    if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(sendLocation, handleError);
-    } else {
-        alert("Geolocation is not supported by this browser.");
-    }
-    </script>
-    """, height=0)
-
-    location = st.text_input("Location Auto Captured")
-
-    # Fallback manual entry (if JS fails)
     manual_location = st.text_input("If auto location fails, enter manually (lat,lon)")
 
     image_buffer = st.camera_input("Capture Face")
@@ -527,12 +510,10 @@ if menu == "Mark Attendance":
         if not image_buffer or not roll_no_input:
             st.warning("Capture image and enter roll number")
         else:
-
-            # Use auto location first, fallback to manual
             final_location = location if location else manual_location
 
             if not final_location:
-                st.error("❌ Location not available. Enable browser permission.")
+                st.error("❌ Location not available.")
                 st.stop()
 
             try:
@@ -581,7 +562,7 @@ if menu == "Mark Attendance":
                 st.success(f"✅ Attendance marked for {recognized_name} ({subject})")
 
 # ===============================
-# VIEW ATTENDANCE
+# VIEW ATTENDANCE (UNCHANGED)
 # ===============================
 if menu == "View Attendance":
     st.header("📊 Attendance Dashboard")
