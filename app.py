@@ -478,26 +478,40 @@ if menu == "Mark Attendance":
 
     st.write(f"📅 {now.strftime('%d-%m-%Y')}  ⏰ {now.strftime('%H:%M:%S')}")
 
-    # LOCATION AUTO CAPTURE
+    st.info("📍 Please allow browser location access when prompted.")
+
+    # LOCATION AUTO CAPTURE (Improved + Error Handling)
     components.html("""
     <script>
-    navigator.geolocation.getCurrentPosition(
-        (position) => {
-            const coords = position.coords.latitude + "," + position.coords.longitude;
-            const streamlitDoc = window.parent.document;
-            const inputs = streamlitDoc.querySelectorAll('input');
-            inputs.forEach(input => {
-                if(input.placeholder === "Location Auto Captured"){
-                    input.value = coords;
-                    input.dispatchEvent(new Event('input', { bubbles: true }));
-                }
-            });
-        }
-    );
+    function sendLocation(position) {
+        const coords = position.coords.latitude + "," + position.coords.longitude;
+        const streamlitDoc = window.parent.document;
+        const inputs = streamlitDoc.querySelectorAll('input');
+
+        inputs.forEach(input => {
+            if(input.placeholder && input.placeholder.includes("Location Auto Captured")){
+                input.value = coords;
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        });
+    }
+
+    function handleError(error) {
+        alert("Location access denied or failed. Please enable location permission.");
+    }
+
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(sendLocation, handleError);
+    } else {
+        alert("Geolocation is not supported by this browser.");
+    }
     </script>
     """, height=0)
 
     location = st.text_input("Location Auto Captured")
+
+    # Fallback manual entry (if JS fails)
+    manual_location = st.text_input("If auto location fails, enter manually (lat,lon)")
 
     image_buffer = st.camera_input("Capture Face")
     roll_no_input = st.text_input("Enter Roll No")
@@ -512,23 +526,32 @@ if menu == "Mark Attendance":
     if mark_clicked:
         if not image_buffer or not roll_no_input:
             st.warning("Capture image and enter roll number")
-        elif not location:
-            st.error("Allow browser location access.")
         else:
+
+            # Use auto location first, fallback to manual
+            final_location = location if location else manual_location
+
+            if not final_location:
+                st.error("❌ Location not available. Enable browser permission.")
+                st.stop()
+
             try:
-                lat, lon = map(float, location.split(","))
+                lat, lon = map(float, final_location.split(","))
+
                 within_radius, distance = is_within_radius(
                     lat, lon,
                     COLLEGE_LAT, COLLEGE_LON,
                     ALLOWED_RADIUS_METERS
                 )
 
+                st.write(f"📏 Distance from college: {int(distance)} meters")
+
                 if not within_radius:
                     st.error(f"❌ You are {int(distance)} meters away from college.")
                     st.stop()
 
             except:
-                st.error("Invalid location data.")
+                st.error("Invalid location format. Use lat,lon format.")
                 st.stop()
 
             image = Image.open(image_buffer).convert("RGB")
@@ -552,7 +575,7 @@ if menu == "Mark Attendance":
                     "date": now.date().isoformat(),
                     "time": now.strftime("%H:%M:%S"),
                     "marked_at": now.isoformat(),
-                    "location": location
+                    "location": final_location
                 }).execute()
 
                 st.success(f"✅ Attendance marked for {recognized_name} ({subject})")
