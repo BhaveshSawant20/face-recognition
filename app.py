@@ -514,7 +514,6 @@ if menu == "Mark Attendance":
     else:
         st.warning("Click the button above to capture location.")
 
-    # manual_location = st.text_input("If auto location fails, enter manually (lat,lon)")
     image_buffer = st.camera_input("Capture Face")
     roll_no_input = st.text_input("Enter Roll No")
 
@@ -532,102 +531,92 @@ if menu == "Mark Attendance":
             st.stop()
 
         if not location:
-                st.error("❌ Location is required to mark attendance.")
-                st.stop()
+            st.error("❌ Location is required to mark attendance.")
+            st.stop()
 
-            final_location = location
+        final_location = location
 
-            # Safe parsing
+        # Safe parsing
         try:
-                user_lat, user_lon = map(
-                    float,
-                    [x.strip() for x in final_location.split(",")]
-                )
+            user_lat, user_lon = map(
+                float,
+                [x.strip() for x in final_location.split(",")]
+            )
         except:
-                st.error("❌ Location format error.")
+            st.error("❌ Location format error.")
+            st.stop()
+
+        image = Image.open(image_buffer).convert("RGB")
+
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
+            image.save(tmp.name)
+            temp_path = tmp.name
+
+        recognized_name, recognized_roll, message = identify_person(temp_path)
+
+        if not recognized_name:
+            st.error(message)
+            st.stop()
+
+        if recognized_roll != roll_no_input.strip():
+            st.error("Roll number does not match recognized face ❌")
+            st.stop()
+
+        # ===============================
+        # GLOBAL 45 MIN COOLDOWN
+        # ===============================
+
+        last_record = supabase.table("attendance") \
+            .select("*") \
+            .eq("roll_no", recognized_roll) \
+            .order("marked_at", desc=True) \
+            .limit(1) \
+            .execute()
+
+        if last_record.data:
+
+            last_time = datetime.datetime.fromisoformat(
+                last_record.data[0]["marked_at"].replace("Z", "+00:00")
+            )
+
+            time_difference = (now - last_time).total_seconds() / 60
+
+            if time_difference < 45:
+                remaining = 45 - int(time_difference)
+                st.error(
+                    f"⏳ You must wait {remaining} more minutes before marking attendance again."
+                )
                 st.stop()
 
-            image = Image.open(image_buffer).convert("RGB")
+        within_radius, distance = is_within_radius(
+            user_lat,
+            user_lon,
+            COLLEGE_LAT,
+            COLLEGE_LON,
+            ALLOWED_RADIUS_METERS
+        )
 
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
-                image.save(tmp.name)
-                temp_path = tmp.name
+        distance = int(distance)
 
-            recognized_name, recognized_roll, message = identify_person(temp_path)
+        st.info(
+            f"📍 {recognized_name} is {distance} meters away from the college"
+        )
 
-            if not recognized_name:
-                st.error(message)
+        if not within_radius:
+            st.error("❌ You are not allowed to mark attendance.")
+            st.stop()
 
-            elif recognized_roll != roll_no_input.strip():
-                st.error("Roll number does not match recognized face ❌")
+        supabase.table("attendance").insert({
+            "roll_no": recognized_roll,
+            "name": recognized_name,
+            "subject": subject,
+            "date": now.date().isoformat(),
+            "time": now.strftime("%H:%M:%S"),
+            "marked_at": now.isoformat(),
+            "location": final_location
+        }).execute()
 
-            else:
-
-                # GLOBAL 45 MIN COOLDOWN
-                last_record = supabase.table("attendance") \
-                    .select("*") \
-                    .eq("roll_no", recognized_roll) \
-                    .order("marked_at", desc=True) \
-                    .limit(1) \
-                    .execute()
-
-                if last_record.data:
-
-                    last_time = datetime.datetime.fromisoformat(
-                        last_record.data[0]["marked_at"].replace("Z", "+00:00")
-                    )
-
-                    time_difference = (now - last_time).total_seconds() / 60
-
-                    if time_difference < 45:
-                        remaining = 45 - int(time_difference)
-                        st.error(
-                            f"⏳ You must wait {remaining} more minutes before marking attendance again."
-                        )
-                        st.stop()
-
-
-                if location:
-                    user_lat, user_lon = map(float, final_location.split(","))
-
-                    within_radius, distance = is_within_radius(
-                        user_lat,
-                        user_lon,
-                        COLLEGE_LAT,
-                        COLLEGE_LON,
-                        ALLOWED_RADIUS_METERS
-                    )
-
-                    distance = int(distance)
-
-                    st.info(
-                        f"📍 {recognized_name} is {distance} meters away from the college"
-                    )
-
-                    if not within_radius:
-                        st.error(
-                            f"❌ You are not allowed to mark attendance."
-                        )
-                        st.stop()
-
-                else:
-                    st.error("❌ Location not detected.")
-                    st.stop()
-
-
-                supabase.table("attendance").insert({
-                    "roll_no": recognized_roll,
-                    "name": recognized_name,
-                    "subject": subject,
-                    "date": now.date().isoformat(),
-                    "time": now.strftime("%H:%M:%S"),
-                    "marked_at": now.isoformat(),
-                    "location": final_location
-                }).execute()
-
-                st.success(
-                    f"✅ Attendance marked successfully!"
-                )
+        st.success("✅ Attendance marked successfully!")
 
 # ===============================
 # VIEW ATTENDANCE
