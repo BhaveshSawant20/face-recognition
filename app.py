@@ -304,13 +304,10 @@ COLLEGE_LAT = 19.26632227483217
 COLLEGE_LON = 72.97470227315154
 ALLOWED_RADIUS_METERS = 200
 
-
 def is_within_radius(user_lat, user_lon, college_lat, college_lon, radius_m):
     R = 6371000
-
     phi1 = math.radians(user_lat)
     phi2 = math.radians(college_lat)
-
     delta_phi = math.radians(college_lat - user_lat)
     delta_lambda = math.radians(college_lon - user_lon)
 
@@ -322,12 +319,10 @@ def is_within_radius(user_lat, user_lon, college_lat, college_lon, radius_m):
 
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
     distance = R * c
-
     return distance <= radius_m, distance
 
-
 # ===============================
-# BACKGROUND + GLASS STYLE (RESTORED)
+# BACKGROUND + GLASS STYLE + BUTTONS
 # ===============================
 
 def add_bg_from_local(image_file):
@@ -336,7 +331,6 @@ def add_bg_from_local(image_file):
 
     st.markdown(f"""
         <style>
-
         .stApp {{
             background-image: url("data:image/png;base64,{encoded_string}");
             background-size: cover;
@@ -351,7 +345,6 @@ def add_bg_from_local(image_file):
         }}
 
         /* GLASS CONTAINER */
-
         .block-container {{
             background: rgba(255,255,255,0.25);
             backdrop-filter: blur(20px);
@@ -376,12 +369,32 @@ def add_bg_from_local(image_file):
             border-radius: 10px !important;
         }}
 
+        /* GLASS BUTTONS */
+        div[data-testid="stButton"] > button {{
+            background: rgba(255,255,255,0.3) !important;
+            backdrop-filter: blur(15px);
+            border-radius: 14px !important;
+            border: 1px solid rgba(255,255,255,0.5) !important;
+            color: black !important;
+            font-weight: bold !important;
+            padding: 12px !important;
+            transition: all 0.3s ease;
+        }}
+
+        div[data-testid="stButton"] > button:hover {{
+            background: rgba(255,255,255,0.5) !important;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+        }}
+
+        div[data-testid="stButton"] > button:active {{
+            transform: translateY(1px);
+        }}
+
         </style>
     """, unsafe_allow_html=True)
 
-
 add_bg_from_local("background.jpg")
-
 st.title(" AI Face Attendance System")
 
 # ===============================
@@ -411,14 +424,13 @@ menu = st.sidebar.selectbox(
 # ===============================
 
 if menu == "Register Face":
-
     st.header("📌 Register New Student")
 
     full_name = st.text_input("Enter Full Name")
     roll_no_input = st.text_input("Enter Roll No")
     image_buffer = st.camera_input("Capture Face")
 
-    col1, col2, col3 = st.columns([1, 2, 1])
+    col1, col2, col3 = st.columns([1,2,1])
     with col2:
         register_clicked = st.button("Register Student", use_container_width=True)
 
@@ -429,35 +441,24 @@ if menu == "Register Face":
             name = full_name.strip()
             roll_no = roll_no_input.strip()
 
-            existing = supabase.table("faces_data") \
-                .select("*") \
-                .eq("roll_no", roll_no) \
-                .execute()
-
+            existing = supabase.table("faces_data").select("*").eq("roll_no", roll_no).execute()
             if existing.data:
                 existing_name = existing.data[0]["name"]
                 st.error(f"❌ Student '{existing_name}' is already registered.")
-
             else:
                 image = Image.open(image_buffer).convert("RGB")
                 filename = f"{roll_no}_{name}.png"
-
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
                     image.save(tmp.name)
-
-                    with open(tmp.name, "rb") as f:
+                    with open(tmp.name,"rb") as f:
                         supabase.storage.from_("faces").upload(
-                            filename,
-                            f,
-                            {"content-type": "image/png", "upsert": "true"}
+                            filename, f, {"content-type":"image/png", "upsert":"true"}
                         )
-
                 supabase.table("faces_data").insert({
                     "name": name,
                     "roll_no": roll_no,
                     "image_path": filename
                 }).execute()
-
                 st.success(f"✅ Student {name} registered successfully!")
 
 # ===============================
@@ -465,29 +466,22 @@ if menu == "Register Face":
 # ===============================
 
 if menu == "Mark Attendance":
-
     st.header("📝 Mark Attendance")
-
     ist = pytz.timezone("Asia/Kolkata")
     now = datetime.datetime.now(ist)
 
     st.write(f"📅 {now.strftime('%d-%m-%Y')}  ⏰ {now.strftime('%H:%M:%S')}")
-
     st.subheader("📍 Capture Location")
     location_data = streamlit_geolocation()
-
     location = None
 
     if location_data and "latitude" in location_data:
         lat = location_data["latitude"]
         lon = location_data["longitude"]
-
         location = f"{lat},{lon}"
-
         st.success("✅ Location captured successfully")
         st.write(f"Latitude: {lat}")
         st.write(f"Longitude: {lon}")
-
     else:
         st.warning("Click the button above to capture location.")
 
@@ -495,41 +489,33 @@ if menu == "Mark Attendance":
     image_buffer = st.camera_input("Capture Face")
     roll_no_input = st.text_input("Enter Roll No")
 
-    subjects = ["SPCC", "CSS", "MC", "AI", "IOT", "CC", "MINI PROJECT"]
+    subjects = ["SPCC","CSS","MC","AI","IOT","CC","MINI PROJECT"]
     subject = st.radio("Select Lecture", subjects, horizontal=True)
 
-    col1, col2, col3 = st.columns([1, 2, 1])
+    col1, col2, col3 = st.columns([1,2,1])
     with col2:
         mark_clicked = st.button("Mark Attendance", use_container_width=True)
 
     if mark_clicked:
-
         if not image_buffer or not roll_no_input:
             st.warning("Capture image and enter roll number")
-
         else:
             final_location = location if location else manual_location
-
             if not final_location:
                 st.error("❌ Location not available.")
                 st.stop()
 
             image = Image.open(image_buffer).convert("RGB")
-
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
+            with tempfile.NamedTemporaryFile(delete=False,suffix=".png") as tmp:
                 image.save(tmp.name)
                 temp_path = tmp.name
 
             recognized_name, recognized_roll, message = identify_person(temp_path)
-
             if not recognized_name:
                 st.error(message)
-
             elif recognized_roll != roll_no_input.strip():
                 st.error("Roll number does not match recognized face ❌")
-
             else:
-
                 # GLOBAL 45 MIN COOLDOWN
                 last_record = supabase.table("attendance") \
                     .select("*") \
@@ -537,21 +523,12 @@ if menu == "Mark Attendance":
                     .order("marked_at", desc=True) \
                     .limit(1) \
                     .execute()
-
                 if last_record.data:
-
-                    last_time = datetime.datetime.fromisoformat(
-                        last_record.data[0]["marked_at"].replace("Z", "+00:00")
-                    )
-
+                    last_time = datetime.datetime.fromisoformat(last_record.data[0]["marked_at"].replace("Z","+00:00"))
                     time_difference = (now - last_time).total_seconds() / 60
-
                     if time_difference < 45:
                         remaining = 45 - int(time_difference)
-
-                        st.error(
-                            f"⏳ You must wait {remaining} more minutes before marking attendance again."
-                        )
+                        st.error(f"⏳ You must wait {remaining} more minutes before marking attendance again.")
                         st.stop()
 
                 supabase.table("attendance").insert({
@@ -563,7 +540,6 @@ if menu == "Mark Attendance":
                     "marked_at": now.isoformat(),
                     "location": final_location
                 }).execute()
-
                 st.success(f"✅ Attendance marked for {recognized_name} ({subject})")
 
 # ===============================
@@ -571,23 +547,14 @@ if menu == "Mark Attendance":
 # ===============================
 
 if menu == "View Attendance":
-
     st.header("📊 Attendance Dashboard")
-
-    data = supabase.table("attendance") \
-        .select("*") \
-        .order("marked_at", desc=True) \
-        .execute()
-
+    data = supabase.table("attendance").select("*").order("marked_at", desc=True).execute()
     if data.data:
         df = pd.DataFrame(data.data)
-
         st.subheader("📋 Attendance Records")
         st.dataframe(df, use_container_width=True)
-
         st.subheader("📊 Subject Wise Attendance")
         subject_count = df["subject"].value_counts()
         st.bar_chart(subject_count)
-
     else:
         st.info("No attendance records found")
