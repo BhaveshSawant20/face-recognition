@@ -302,7 +302,7 @@ st.set_page_config(page_title="AI Attendance System", layout="centered")
 
 COLLEGE_LAT = 19.26632227483217
 COLLEGE_LON = 72.97470227315154
-ALLOWED_RADIUS_METERS = 20000
+ALLOWED_RADIUS_METERS = 200
 
 
 def is_within_radius(user_lat, user_lon, college_lat, college_lon, radius_m):
@@ -627,8 +627,7 @@ if menu == "Mark Attendance":
                 }).execute()
 
                 st.success(
-                    f"✅ {recognized_name} is {distance} meters away from the college. "
-                    "Attendance marked successfully!"
+                    f"✅ Attendance marked successfully!"
                 )
 
 # ===============================
