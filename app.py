@@ -514,7 +514,7 @@ if menu == "Mark Attendance":
     else:
         st.warning("Click the button above to capture location.")
 
-    manual_location = st.text_input("If auto location fails, enter manually (lat,lon)")
+    # manual_location = st.text_input("If auto location fails, enter manually (lat,lon)")
     image_buffer = st.camera_input("Capture Face")
     roll_no_input = st.text_input("Enter Roll No")
 
@@ -529,23 +529,22 @@ if menu == "Mark Attendance":
 
         if not image_buffer or not roll_no_input:
             st.warning("Capture image and enter roll number")
+            st.stop()
 
-        else:
-            # Prefer GPS location, fallback to manual location
-            final_location = location if location else manual_location
-
-            # Validate manual location format
-            if not final_location:
-                st.error("❌ Location not available.")
+        if not location:
+                st.error("❌ Location is required to mark attendance.")
                 st.stop()
 
-            try:
+            final_location = location
+
+            # Safe parsing
+        try:
                 user_lat, user_lon = map(
                     float,
                     [x.strip() for x in final_location.split(",")]
                 )
-            except:
-                st.error("❌ Enter manual location in correct format: lat,lon")
+        except:
+                st.error("❌ Location format error.")
                 st.stop()
 
             image = Image.open(image_buffer).convert("RGB")
