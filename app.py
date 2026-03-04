@@ -304,13 +304,10 @@ COLLEGE_LAT = 19.26632227483217
 COLLEGE_LON = 72.97470227315154
 ALLOWED_RADIUS_METERS = 200
 
-
 def is_within_radius(user_lat, user_lon, college_lat, college_lon, radius_m):
     R = 6371000
-
     phi1 = math.radians(user_lat)
     phi2 = math.radians(college_lat)
-
     delta_phi = math.radians(college_lat - user_lat)
     delta_lambda = math.radians(college_lon - user_lon)
 
@@ -324,7 +321,6 @@ def is_within_radius(user_lat, user_lon, college_lat, college_lon, radius_m):
     distance = R * c
 
     return distance <= radius_m, distance
-
 
 # ===============================
 # BACKGROUND + GLASS STYLE
@@ -343,13 +339,8 @@ def add_bg_from_local(image_file):
             background-repeat: no-repeat;
             background-attachment: fixed;
         }}
-        section[data-testid="stSidebar"] {{
-            background-image: url("data:image/png;base64,{encoded_string}");
-            background-size: cover;
-        }}
         </style>
     """, unsafe_allow_html=True)
-
 
 add_bg_from_local("background.jpg")
 
@@ -432,7 +423,7 @@ if menu == "Register Face":
                 st.success(f"✅ Student {name} registered successfully!")
 
 # ===============================
-# MARK ATTENDANCE (GLOBAL 45 MIN COOLDOWN)
+# MARK ATTENDANCE
 # ===============================
 
 if menu == "Mark Attendance":
@@ -448,7 +439,6 @@ if menu == "Mark Attendance":
     location_data = streamlit_geolocation()
 
     location = None
-
     if location_data and "latitude" in location_data:
         lat = location_data["latitude"]
         lon = location_data["longitude"]
@@ -502,7 +492,7 @@ if menu == "Mark Attendance":
             else:
 
                 # ===============================
-                # GLOBAL 45 MIN COOLDOWN LOGIC
+                # ✅ UPDATED GLOBAL 45 MIN COOLDOWN
                 # ===============================
 
                 last_record = supabase.table("attendance") \
@@ -514,11 +504,9 @@ if menu == "Mark Attendance":
 
                 if last_record.data:
 
-                    ist = pytz.timezone("Asia/Kolkata")
-
                     last_time = datetime.datetime.fromisoformat(
                         last_record.data[0]["marked_at"].replace("Z", "+00:00")
-                    ).astimezone(ist)
+                    )
 
                     time_difference = (now - last_time).total_seconds() / 60
 
@@ -542,7 +530,6 @@ if menu == "Mark Attendance":
                 }).execute()
 
                 st.success(f"✅ Attendance marked for {recognized_name} ({subject})")
-
 
 # ===============================
 # VIEW ATTENDANCE
