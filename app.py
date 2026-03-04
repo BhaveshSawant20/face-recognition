@@ -531,10 +531,21 @@ if menu == "Mark Attendance":
             st.warning("Capture image and enter roll number")
 
         else:
+            # Prefer GPS location, fallback to manual location
             final_location = location if location else manual_location
 
+            # Validate manual location format
             if not final_location:
                 st.error("❌ Location not available.")
+                st.stop()
+
+            try:
+                user_lat, user_lon = map(
+                    float,
+                    [x.strip() for x in final_location.split(",")]
+                )
+            except:
+                st.error("❌ Enter manual location in correct format: lat,lon")
                 st.stop()
 
             image = Image.open(image_buffer).convert("RGB")
