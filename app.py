@@ -285,7 +285,7 @@ import tempfile
 import pytz
 import base64
 import math
-from streamlit_geolocation import streamlit_geolocation  # ✅ ADDED
+from streamlit_geolocation import streamlit_geolocation
 
 from main import identify_person
 
@@ -469,7 +469,7 @@ if menu == "Register Face":
                 st.success(f"✅ Student {name} registered successfully!")
 
 # ===============================
-# MARK ATTENDANCE (LOCATION FIXED)
+# MARK ATTENDANCE (COOLDOWN ADDED)
 # ===============================
 if menu == "Mark Attendance":
     st.header("📝 Mark Attendance")
@@ -479,7 +479,6 @@ if menu == "Mark Attendance":
 
     st.write(f"📅 {now.strftime('%d-%m-%Y')}  ⏰ {now.strftime('%H:%M:%S')}")
 
-    # ✅ Proper location component
     st.subheader("📍 Capture Location")
     location_data = streamlit_geolocation()
 
@@ -495,7 +494,6 @@ if menu == "Mark Attendance":
         st.warning("Click the button above to capture location.")
 
     manual_location = st.text_input("If auto location fails, enter manually (lat,lon)")
-
     image_buffer = st.camera_input("Capture Face")
     roll_no_input = st.text_input("Enter Roll No")
 
@@ -516,25 +514,6 @@ if menu == "Mark Attendance":
                 st.error("❌ Location not available.")
                 st.stop()
 
-            try:
-                lat, lon = map(float, final_location.split(","))
-
-                within_radius, distance = is_within_radius(
-                    lat, lon,
-                    COLLEGE_LAT, COLLEGE_LON,
-                    ALLOWED_RADIUS_METERS
-                )
-
-                st.write(f"📏 Distance from college: {int(distance)} meters")
-
-                if not within_radius:
-                    st.error(f"❌ You are {int(distance)} meters away from college.")
-                    st.stop()
-
-            except:
-                st.error("Invalid location format. Use lat,lon format.")
-                st.stop()
-
             image = Image.open(image_buffer).convert("RGB")
             with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
                 image.save(tmp.name)
@@ -549,6 +528,33 @@ if menu == "Mark Attendance":
                 st.error("Roll number does not match recognized face ❌")
 
             else:
+                # ===============================
+                # 45 MIN COOLDOWN LOGIC ADDED
+                # ===============================
+                last_record = supabase.table("attendance") \
+                    .select("*") \
+                    .eq("roll_no", recognized_roll) \
+                    .eq("subject", subject) \
+                    .order("marked_at", desc=True) \
+                    .limit(1) \
+                    .execute()
+
+                if last_record.data:
+                    last_time = datetime.datetime.fromisoformat(
+                        last_record.data[0]["marked_at"]
+                    )
+
+                    time_difference = (now - last_time).total_seconds() / 60
+
+                    if time_difference < 45:
+                        remaining = 45 - int(time_difference)
+                        st.error(
+                            f"⏳ {recognized_name} already marked attendance. "
+                            f"Wait {remaining} more minutes before trying again."
+                        )
+                        st.stop()
+
+                # Insert attendance if cooldown passed
                 supabase.table("attendance").insert({
                     "roll_no": recognized_roll,
                     "name": recognized_name,
