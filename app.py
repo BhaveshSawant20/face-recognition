@@ -304,10 +304,13 @@ COLLEGE_LAT = 19.26632227483217
 COLLEGE_LON = 72.97470227315154
 ALLOWED_RADIUS_METERS = 200
 
+
 def is_within_radius(user_lat, user_lon, college_lat, college_lon, radius_m):
     R = 6371000
+
     phi1 = math.radians(user_lat)
     phi2 = math.radians(college_lat)
+
     delta_phi = math.radians(college_lat - user_lat)
     delta_lambda = math.radians(college_lon - user_lon)
 
@@ -322,8 +325,9 @@ def is_within_radius(user_lat, user_lon, college_lat, college_lon, radius_m):
 
     return distance <= radius_m, distance
 
+
 # ===============================
-# BACKGROUND + GLASS STYLE
+# BACKGROUND + GLASS STYLE (RESTORED)
 # ===============================
 
 def add_bg_from_local(image_file):
@@ -332,6 +336,7 @@ def add_bg_from_local(image_file):
 
     st.markdown(f"""
         <style>
+
         .stApp {{
             background-image: url("data:image/png;base64,{encoded_string}");
             background-size: cover;
@@ -339,8 +344,41 @@ def add_bg_from_local(image_file):
             background-repeat: no-repeat;
             background-attachment: fixed;
         }}
+
+        section[data-testid="stSidebar"] {{
+            background-image: url("data:image/png;base64,{encoded_string}");
+            background-size: cover;
+        }}
+
+        /* GLASS CONTAINER */
+
+        .block-container {{
+            background: rgba(255,255,255,0.25);
+            backdrop-filter: blur(20px);
+            border-radius: 25px;
+            border: 1px solid rgba(255,255,255,0.4);
+            padding: 2.5rem;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+        }}
+
+        .block-container h1,
+        .block-container h2,
+        .block-container h3,
+        .block-container h4,
+        .block-container p,
+        .block-container label {{
+            color: black !important;
+        }}
+
+        input, textarea {{
+            background-color: rgba(0,0,0,0.85) !important;
+            color: white !important;
+            border-radius: 10px !important;
+        }}
+
         </style>
     """, unsafe_allow_html=True)
+
 
 add_bg_from_local("background.jpg")
 
@@ -439,6 +477,7 @@ if menu == "Mark Attendance":
     location_data = streamlit_geolocation()
 
     location = None
+
     if location_data and "latitude" in location_data:
         lat = location_data["latitude"]
         lon = location_data["longitude"]
@@ -491,10 +530,7 @@ if menu == "Mark Attendance":
 
             else:
 
-                # ===============================
-                # ✅ UPDATED GLOBAL 45 MIN COOLDOWN
-                # ===============================
-
+                # GLOBAL 45 MIN COOLDOWN
                 last_record = supabase.table("attendance") \
                     .select("*") \
                     .eq("roll_no", recognized_roll) \
@@ -518,7 +554,6 @@ if menu == "Mark Attendance":
                         )
                         st.stop()
 
-                # Insert attendance
                 supabase.table("attendance").insert({
                     "roll_no": recognized_roll,
                     "name": recognized_name,
