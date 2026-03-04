@@ -596,8 +596,7 @@ if menu == "Mark Attendance":
 
                     if not within_radius:
                         st.error(
-                            f"❌ {recognized_name} is {distance} meters away from the college. "
-                            "You are not allowed to mark attendance."
+                            f"❌ You are not allowed to mark attendance."
                         )
                         st.stop()
 
