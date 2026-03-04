@@ -576,6 +576,36 @@ if menu == "Mark Attendance":
                         )
                         st.stop()
 
+
+                if location:
+                    user_lat, user_lon = map(float, final_location.split(","))
+
+                    within_radius, distance = is_within_radius(
+                        user_lat,
+                        user_lon,
+                        COLLEGE_LAT,
+                        COLLEGE_LON,
+                        ALLOWED_RADIUS_METERS
+                    )
+
+                    distance = int(distance)
+
+                    st.info(
+                        f"📍 {recognized_name} is {distance} meters away from the college"
+                    )
+
+                    if not within_radius:
+                        st.error(
+                            f"❌ {recognized_name} is {distance} meters away from the college. "
+                            "You are not allowed to mark attendance."
+                        )
+                        st.stop()
+
+                else:
+                    st.error("❌ Location not detected.")
+                    st.stop()
+
+
                 supabase.table("attendance").insert({
                     "roll_no": recognized_roll,
                     "name": recognized_name,
@@ -586,7 +616,10 @@ if menu == "Mark Attendance":
                     "location": final_location
                 }).execute()
 
-                st.success(f"✅ Attendance marked for {recognized_name} ({subject})")
+                st.success(
+                    f"✅ {recognized_name} is {distance} meters away from the college. "
+                    "Attendance marked successfully!"
+                )
 
 # ===============================
 # VIEW ATTENDANCE
