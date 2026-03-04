@@ -292,20 +292,25 @@ from main import identify_person
 # ===============================
 # CONFIG
 # ===============================
+
 load_dotenv()
 st.set_page_config(page_title="AI Attendance System", layout="centered")
 
 # ===============================
 # COLLEGE LOCATION CONFIG
 # ===============================
+
 COLLEGE_LAT = 19.26632227483217
 COLLEGE_LON = 72.97470227315154
 ALLOWED_RADIUS_METERS = 200
 
+
 def is_within_radius(user_lat, user_lon, college_lat, college_lon, radius_m):
     R = 6371000
+
     phi1 = math.radians(user_lat)
     phi2 = math.radians(college_lat)
+
     delta_phi = math.radians(college_lat - user_lat)
     delta_lambda = math.radians(college_lon - user_lon)
 
@@ -320,9 +325,11 @@ def is_within_radius(user_lat, user_lon, college_lat, college_lon, radius_m):
 
     return distance <= radius_m, distance
 
+
 # ===============================
 # BACKGROUND + GLASS STYLE
 # ===============================
+
 def add_bg_from_local(image_file):
     with open(image_file, "rb") as f:
         encoded_string = base64.b64encode(f.read()).decode()
@@ -340,60 +347,9 @@ def add_bg_from_local(image_file):
             background-image: url("data:image/png;base64,{encoded_string}");
             background-size: cover;
         }}
-        .block-container {{
-            background: rgba(255,255,255,0.25);
-            backdrop-filter: blur(20px);
-            border-radius: 25px;
-            border: 1px solid rgba(255,255,255,0.4);
-            padding: 2.5rem;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
-            color: black !important;
-        }}
-        .block-container h1, .block-container h2,
-        .block-container h3, .block-container h4,
-        .block-container p, .block-container label,
-        .block-container span, .block-container div {{
-            color: black !important;
-        }}
-        input, textarea {{
-            background-color: rgba(0,0,0,0.85) !important;
-            color: white !important;
-            border-radius: 10px !important;
-        }}
-        button[kind="secondary"],
-        div[data-testid="stCameraInput"] *,
-        div[data-testid="stCameraInput"] button,
-        div[data-testid="stCameraInput"] button span {{
-            color: white !important;
-        }}
-        div[data-testid="stButton"] {{
-            text-align: center !important;
-        }}
-        div[data-testid="stButton"] > button {{
-            display: inline-block !important;
-            margin: 0 auto !important;
-            width: 60%;
-            background-color: white !important;
-            color: black !important;
-            border-radius: 12px !important;
-            border: 1px solid rgba(0,0,0,0.3) !important;
-            font-weight: bold !important;
-            padding: 10px 20px !important;
-            transition: all 0.2s ease-in-out;
-        }}
-        div[data-testid="stButton"] > button:hover {{
-            background-color: #4CAF50 !important;
-            color: white !important;
-            box-shadow: 0 6px 10px rgba(0,0,0,0.15);
-            transform: translateY(-2px);
-        }}
-        div[data-testid="stButton"] > button:active {{
-            background-color: #45a049 !important;
-            transform: translateY(1px);
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        }}
         </style>
     """, unsafe_allow_html=True)
+
 
 add_bg_from_local("background.jpg")
 
@@ -402,6 +358,7 @@ st.title(" AI Face Attendance System")
 # ===============================
 # SUPABASE
 # ===============================
+
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
@@ -414,15 +371,18 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 # ===============================
 # SIDEBAR MENU
 # ===============================
+
 menu = st.sidebar.selectbox(
     "Choose Mode",
     ["Register Face", "Mark Attendance", "View Attendance"]
 )
 
 # ===============================
-# REGISTER FACE (UNCHANGED)
+# REGISTER FACE
 # ===============================
+
 if menu == "Register Face":
+
     st.header("📌 Register New Student")
 
     full_name = st.text_input("Enter Full Name")
@@ -448,15 +408,18 @@ if menu == "Register Face":
             if existing.data:
                 existing_name = existing.data[0]["name"]
                 st.error(f"❌ Student '{existing_name}' is already registered.")
+
             else:
                 image = Image.open(image_buffer).convert("RGB")
                 filename = f"{roll_no}_{name}.png"
 
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
                     image.save(tmp.name)
+
                     with open(tmp.name, "rb") as f:
                         supabase.storage.from_("faces").upload(
-                            filename, f,
+                            filename,
+                            f,
                             {"content-type": "image/png", "upsert": "true"}
                         )
 
@@ -469,9 +432,11 @@ if menu == "Register Face":
                 st.success(f"✅ Student {name} registered successfully!")
 
 # ===============================
-# MARK ATTENDANCE (COOLDOWN ADDED)
+# MARK ATTENDANCE (GLOBAL 45 MIN COOLDOWN)
 # ===============================
+
 if menu == "Mark Attendance":
+
     st.header("📝 Mark Attendance")
 
     ist = pytz.timezone("Asia/Kolkata")
@@ -483,13 +448,17 @@ if menu == "Mark Attendance":
     location_data = streamlit_geolocation()
 
     location = None
+
     if location_data and "latitude" in location_data:
         lat = location_data["latitude"]
         lon = location_data["longitude"]
+
         location = f"{lat},{lon}"
+
         st.success("✅ Location captured successfully")
         st.write(f"Latitude: {lat}")
         st.write(f"Longitude: {lon}")
+
     else:
         st.warning("Click the button above to capture location.")
 
@@ -505,8 +474,10 @@ if menu == "Mark Attendance":
         mark_clicked = st.button("Mark Attendance", use_container_width=True)
 
     if mark_clicked:
+
         if not image_buffer or not roll_no_input:
             st.warning("Capture image and enter roll number")
+
         else:
             final_location = location if location else manual_location
 
@@ -515,6 +486,7 @@ if menu == "Mark Attendance":
                 st.stop()
 
             image = Image.open(image_buffer).convert("RGB")
+
             with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
                 image.save(tmp.name)
                 temp_path = tmp.name
@@ -528,33 +500,37 @@ if menu == "Mark Attendance":
                 st.error("Roll number does not match recognized face ❌")
 
             else:
+
                 # ===============================
-                # 45 MIN COOLDOWN LOGIC ADDED
+                # GLOBAL 45 MIN COOLDOWN LOGIC
                 # ===============================
+
                 last_record = supabase.table("attendance") \
                     .select("*") \
                     .eq("roll_no", recognized_roll) \
-                    .eq("subject", subject) \
                     .order("marked_at", desc=True) \
                     .limit(1) \
                     .execute()
 
                 if last_record.data:
+
+                    ist = pytz.timezone("Asia/Kolkata")
+
                     last_time = datetime.datetime.fromisoformat(
-                        last_record.data[0]["marked_at"]
-                    )
+                        last_record.data[0]["marked_at"].replace("Z", "+00:00")
+                    ).astimezone(ist)
 
                     time_difference = (now - last_time).total_seconds() / 60
 
                     if time_difference < 45:
                         remaining = 45 - int(time_difference)
+
                         st.error(
-                            f"⏳ {recognized_name} already marked attendance. "
-                            f"Wait {remaining} more minutes before trying again."
+                            f"⏳ You must wait {remaining} more minutes before marking attendance again."
                         )
                         st.stop()
 
-                # Insert attendance if cooldown passed
+                # Insert attendance
                 supabase.table("attendance").insert({
                     "roll_no": recognized_roll,
                     "name": recognized_name,
@@ -567,10 +543,13 @@ if menu == "Mark Attendance":
 
                 st.success(f"✅ Attendance marked for {recognized_name} ({subject})")
 
+
 # ===============================
-# VIEW ATTENDANCE (UNCHANGED)
+# VIEW ATTENDANCE
 # ===============================
+
 if menu == "View Attendance":
+
     st.header("📊 Attendance Dashboard")
 
     data = supabase.table("attendance") \
@@ -587,5 +566,6 @@ if menu == "View Attendance":
         st.subheader("📊 Subject Wise Attendance")
         subject_count = df["subject"].value_counts()
         st.bar_chart(subject_count)
+
     else:
         st.info("No attendance records found")
