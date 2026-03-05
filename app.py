@@ -524,7 +524,12 @@ if menu == "Mark Attendance":
     roll_no_input = st.text_input("Enter Roll No")
 
     subjects = ["SPCC", "CSS", "MC", "AI", "IOT", "CC", "MINI PROJECT"]
-    subject = st.radio("Select Lecture", subjects, horizontal=True)
+    subject = st.radio(
+        "Select Lecture",
+        subjects,
+        horizontal=True,
+        index=None
+    )
 
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
@@ -538,6 +543,10 @@ if menu == "Mark Attendance":
 
         if not location:
             st.error("❌ Location is required to mark attendance.")
+            st.stop()
+
+        if subject is None:
+            st.warning("Please select a subject")
             st.stop()
 
         final_location = location
