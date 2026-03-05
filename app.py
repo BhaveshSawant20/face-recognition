@@ -495,7 +495,7 @@ if menu == "Mark Attendance":
     st.header("📝 Mark Attendance")
 
     ist = pytz.timezone("Asia/Kolkata")
-    now = datetime.datetime.now(datetime.timezone.utc)
+    now = datetime.datetime.now(ist)
 
     st.write(f"📅 {now.strftime('%d-%m-%Y')}  ⏰ {now.strftime('%H:%M:%S')}")
 
@@ -597,7 +597,13 @@ if menu == "Mark Attendance":
             last_time = None
             if timestamp:
                 try:
-                    last_time = datetime.datetime.fromisoformat(str(timestamp).replace("Z", "+00:00"))
+                    last_time = datetime.datetime.fromisoformat(
+                        str(timestamp).replace("Z", "+00:00")
+                    )
+
+                    # Convert UTC → IST
+                    last_time = last_time.astimezone(ist)
+
                 except Exception:
                     last_time = None
 
@@ -606,6 +612,7 @@ if menu == "Mark Attendance":
 
                 if time_difference < 45:
                     remaining = 45 - int(time_difference)
+
                     st.error(
                         f"⏳ You must wait {remaining} more minutes before marking attendance again."
                     )
