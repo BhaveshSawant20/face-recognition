@@ -495,7 +495,7 @@ if menu == "Mark Attendance":
     st.header("📝 Mark Attendance")
 
     ist = pytz.timezone("Asia/Kolkata")
-    now = datetime.datetime.now(ist)
+    now = datetime.datetime.now(datetime.timezone.utc)
 
     st.write(f"📅 {now.strftime('%d-%m-%Y')}  ⏰ {now.strftime('%H:%M:%S')}")
 
@@ -590,18 +590,26 @@ if menu == "Mark Attendance":
 
         if last_record.data:
 
-            last_time = datetime.datetime.fromisoformat(
-                last_record.data[0]["marked_at"].replace("Z", "+00:00")
-            )
+            record = last_record.data[0]
 
-            time_difference = (now - last_time).total_seconds() / 60
+            timestamp = record.get("marked_at")
 
-            if time_difference < 45:
-                remaining = 45 - int(time_difference)
-                st.error(
-                    f"⏳ You must wait {remaining} more minutes before marking attendance again."
-                )
-                st.stop()
+            last_time = None
+            if timestamp:
+                try:
+                    last_time = datetime.datetime.fromisoformat(str(timestamp).replace("Z", "+00:00"))
+                except Exception:
+                    last_time = None
+
+            if last_time:
+                time_difference = (now - last_time).total_seconds() / 60
+
+                if time_difference < 45:
+                    remaining = 45 - int(time_difference)
+                    st.error(
+                        f"⏳ You must wait {remaining} more minutes before marking attendance again."
+                    )
+                    st.stop()
 
         within_radius, distance = is_within_radius(
             user_lat,
