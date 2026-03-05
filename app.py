@@ -300,8 +300,8 @@ st.set_page_config(page_title="AI Attendance System", layout="centered")
 # COLLEGE LOCATION CONFIG
 # ===============================
 
-COLLEGE_LAT = 19.26632227483217
-COLLEGE_LON = 72.97470227315154
+COLLEGE_LAT = 19.26653217220706
+COLLEGE_LON = 72.97446013277826
 ALLOWED_RADIUS_METERS = 200
 
 
@@ -440,7 +440,10 @@ if menu == "Register Face":
 
     full_name = st.text_input("Enter Full Name")
     roll_no_input = st.text_input("Enter Roll No")
-    image_buffer = st.camera_input("Capture Face")
+    image_buffer = st.camera_input(
+        "Capture Face",
+        key=f"{menu}_camera"
+    )
 
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
@@ -514,7 +517,10 @@ if menu == "Mark Attendance":
     else:
         st.warning("Click the button above to capture location.")
 
-    image_buffer = st.camera_input("Capture Face")
+    image_buffer = st.camera_input(
+        "Capture Face",
+        key=f"{menu}_camera"
+    )
     roll_no_input = st.text_input("Enter Roll No")
 
     subjects = ["SPCC", "CSS", "MC", "AI", "IOT", "CC", "MINI PROJECT"]
