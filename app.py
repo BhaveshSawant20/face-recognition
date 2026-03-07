@@ -499,23 +499,54 @@ if menu == "Mark Attendance":
 
     st.write(f"📅 {now.strftime('%d-%m-%Y')}  ⏰ {now.strftime('%H:%M:%S')}")
 
+    # st.subheader("📍 Capture Location")
+    # location_data = streamlit_geolocation()
+    #
+    # location = None
+    #
+    # if location_data and "latitude" in location_data:
+    #     lat = location_data["latitude"]
+    #     lon = location_data["longitude"]
+    #
+    #     location = f"{lat},{lon}"
+    #
+    #     st.success("✅ Location captured successfully")
+    #     st.write(f"Latitude: {lat}")
+    #     st.write(f"Longitude: {lon}")
+    #
+    # else:
+    #     st.warning("Click the button above to capture location.")
     st.subheader("📍 Capture Location")
-    location_data = streamlit_geolocation()
+
+    # session state to control location capture
+    if "get_location" not in st.session_state:
+        st.session_state.get_location = False
+
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        if st.button("📍 Get My Location", use_container_width=True):
+            st.session_state.get_location = True
 
     location = None
 
-    if location_data and "latitude" in location_data:
-        lat = location_data["latitude"]
-        lon = location_data["longitude"]
+    # Only run geolocation AFTER button click
+    if st.session_state.get_location:
 
-        location = f"{lat},{lon}"
+        location_data = streamlit_geolocation()
 
-        st.success("✅ Location captured successfully")
-        st.write(f"Latitude: {lat}")
-        st.write(f"Longitude: {lon}")
+        if location_data and location_data.get("latitude"):
 
-    else:
-        st.warning("Click the button above to capture location.")
+            lat = location_data["latitude"]
+            lon = location_data["longitude"]
+
+            location = f"{lat},{lon}"
+
+            st.success("✅ Location captured successfully")
+            st.write(f"Latitude: {lat}")
+            st.write(f"Longitude: {lon}")
+
+        else:
+            st.warning("Allow browser location permission.")
 
     image_buffer = st.camera_input(
         "Capture Face",
