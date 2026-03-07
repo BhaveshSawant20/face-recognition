@@ -695,6 +695,9 @@ if menu == "View Attendance":
     if data.data:
         df = pd.DataFrame(data.data)
 
+        # Remove unwanted columns if they exist
+        df = df.drop(columns=["marked_at", "created_at"], errors="ignore")
+
         st.subheader("📋 Attendance Records")
         st.dataframe(df, use_container_width=True)
 
