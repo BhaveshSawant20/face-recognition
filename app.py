@@ -499,23 +499,6 @@ if menu == "Mark Attendance":
 
     st.write(f"📅 {now.strftime('%d-%m-%Y')}  ⏰ {now.strftime('%H:%M:%S')}")
 
-    # st.subheader("📍 Capture Location")
-    # location_data = streamlit_geolocation()
-    #
-    # location = None
-    #
-    # if location_data and "latitude" in location_data:
-    #     lat = location_data["latitude"]
-    #     lon = location_data["longitude"]
-    #
-    #     location = f"{lat},{lon}"
-    #
-    #     st.success("✅ Location captured successfully")
-    #     st.write(f"Latitude: {lat}")
-    #     st.write(f"Longitude: {lon}")
-    #
-    # else:
-    #     st.warning("Click the button above to capture location.")
     st.subheader("📍 Capture Location")
 
     # session state to control location capture
