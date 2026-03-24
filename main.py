@@ -7,15 +7,30 @@ import requests
 # ===============================
 # SUPABASE CLIENT
 # ===============================
+# def get_supabase_client():
+#     supabase_url = os.getenv("SUPABASE_URL")
+#     supabase_key = os.getenv("SUPABASE_KEY")
+#
+#     if not supabase_url or not supabase_key:
+#         raise ValueError("Supabase environment variables not set")
+#
+#     return create_client(supabase_url, supabase_key)
+
 def get_supabase_client():
-    supabase_url = os.getenv("SUPABASE_URL")
-    supabase_key = os.getenv("SUPABASE_KEY")
+    if "SUPABASE_URL" in st.secrets:
+        supabase_url = st.secrets["SUPABASE_URL"]
+        supabase_key = st.secrets["SUPABASE_KEY"]
+    else:
+        import os
+        from dotenv import load_dotenv
+        load_dotenv()
+        supabase_url = os.getenv("SUPABASE_URL")
+        supabase_key = os.getenv("SUPABASE_KEY")
 
     if not supabase_url or not supabase_key:
-        raise ValueError("Supabase environment variables not set")
+        raise ValueError("Supabase credentials missing")
 
     return create_client(supabase_url, supabase_key)
-
 
 # ===============================
 # LOAD REGISTERED USERS
