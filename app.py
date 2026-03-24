@@ -412,11 +412,27 @@ st.title(" AI Face Attendance System")
 # SUPABASE
 # ===============================
 
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+# SUPABASE_URL = os.getenv("SUPABASE_URL")
+# SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+#
+# if not SUPABASE_URL or not SUPABASE_KEY:
+#     st.error("Supabase environment variables missing")
+#     st.stop()
+#
+# supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+
+if "SUPABASE_URL" in st.secrets:
+    SUPABASE_URL = st.secrets["SUPABASE_URL"]
+    SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
+else:
+    from dotenv import load_dotenv
+    load_dotenv()
+    SUPABASE_URL = os.getenv("SUPABASE_URL")
+    SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
 if not SUPABASE_URL or not SUPABASE_KEY:
-    st.error("Supabase environment variables missing")
+    st.error("❌ Supabase credentials missing")
     st.stop()
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
