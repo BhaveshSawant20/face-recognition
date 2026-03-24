@@ -3,6 +3,7 @@ import tempfile
 from supabase import create_client
 from deepface import DeepFace
 import requests
+import streamlit as st
 
 # ===============================
 # SUPABASE CLIENT
