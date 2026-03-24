@@ -302,7 +302,7 @@ st.set_page_config(page_title="AI Attendance System", layout="centered")
 
 COLLEGE_LAT = 19.26653217220706
 COLLEGE_LON = 72.97446013277826
-ALLOWED_RADIUS_METERS = 200
+ALLOWED_RADIUS_METERS = 200000
 
 
 def is_within_radius(user_lat, user_lon, college_lat, college_lon, radius_m):
