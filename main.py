@@ -92,9 +92,9 @@ def identify_person(captured_image_path):
             )
 
             distance = result.get("distance", 1.0)
-            print(f"📊 {name} ({roll_no}): distance = {distance:.4f}")  # debug
+            print(f"📊 {name} ({roll_no}): distance = {distance:.4f}")
 
-            if distance < lowest_distance and distance < 0.6:  # ✅ Fix: was 0.45
+            if distance < lowest_distance and distance < 0.45:
                 lowest_distance = distance
                 best_match_name = name
                 best_match_roll = roll_no
