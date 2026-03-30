@@ -43,7 +43,7 @@ def identify_person(captured_image_path):
 
     best_match_name = None
     best_match_roll = None
-    lowest_distance = float("inf")  # ✅ Fix: was 1.0 before
+    lowest_distance = 1.0
 
     for user in users:
         name = user["name"]
