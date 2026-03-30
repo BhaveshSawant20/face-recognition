@@ -1,59 +1,65 @@
 import os
 import requests
-from pathlib import Path
+import streamlit as st
 
-def preload_models():
-    weights_dir = Path.home() / ".deepface" / "weights"
-    weights_dir.mkdir(parents=True, exist_ok=True)
-    weights_path = weights_dir / "facenet_weights.h5"
+WEIGHTS_DIR = os.path.expanduser("~/.deepface/weights")
+WEIGHTS_PATH = os.path.join(WEIGHTS_DIR, "facenet_weights.h5")
+EXPECTED_SIZE = 90000000  # 90MB minimum
 
-    # If file exists but is too small (corrupted), delete it
-    if weights_path.exists() and weights_path.stat().st_size < 1_000_000:
-        print(f"⚠️ Corrupted weights detected ({weights_path.stat().st_size} bytes), deleting...")
-        weights_path.unlink()
 
-    if not weights_path.exists():
-        print("⬇️ Downloading Facenet weights from direct mirror...")
+def preload_facenet_weights():
+    os.makedirs(WEIGHTS_DIR, exist_ok=True)
 
-        # Direct download URL (bypasses GitHub redirect)
-        url = "https://github.com/serengil/deepface_models/releases/download/v1.0/facenet_weights.h5"
-
-        headers = {"Accept": "application/octet-stream"}
-        response = requests.get(url, headers=headers, stream=True, allow_redirects=True)
-
-        if response.status_code == 200:
-            total = 0
-            with open(weights_path, "wb") as f:
-                for chunk in response.iter_content(chunk_size=8192):
-                    f.write(chunk)
-                    total += len(chunk)
-            print(f"✅ Downloaded {total / 1_000_000:.1f} MB")
-        else:
-            print(f"❌ Download failed: {response.status_code}")
+    # Check if already downloaded correctly
+    if os.path.exists(WEIGHTS_PATH):
+        size = os.path.getsize(WEIGHTS_PATH)
+        if size > EXPECTED_SIZE:
+            print(f"✅ Facenet weights already present ({size} bytes)")
             return
+        else:
+            print(f"⚠️ Corrupted weights ({size} bytes), re-downloading...")
+            os.remove(WEIGHTS_PATH)
 
-    print(f"✅ Weights ready: {weights_path.stat().st_size / 1_000_000:.1f} MB")
+    # ⬇️ YOUR GOOGLE DRIVE FILE ID HERE
+    FILE_ID = "https://drive.google.com/file/d/1NjqIpPiDAHND_r15N7lOQhurpulfNgpV/view?usp=sharing"
 
-    # Now preload into DeepFace
+    print("⬇️ Downloading Facenet weights from Google Drive...")
+
     try:
-        import numpy as np
-        from PIL import Image
-        import tempfile
-        from deepface import DeepFace
+        # Step 1: Get confirmation token (for large files)
+        session = requests.Session()
+        URL = "https://drive.google.com/uc?export=download"
 
-        dummy_img = np.zeros((160, 160, 3), dtype=np.uint8)
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
-            Image.fromarray(dummy_img).save(tmp.name)
-            tmp_path = tmp.name
+        response = session.get(URL, params={"id": FILE_ID}, stream=True)
 
-        DeepFace.represent(
-            img_path=tmp_path,
-            model_name="Facenet",
-            enforce_detection=False
-        )
-        print("✅ Facenet model loaded successfully!")
+        # Extract confirmation token if present
+        token = None
+        for key, value in response.cookies.items():
+            if key.startswith("download_warning"):
+                token = value
+                break
+
+        if token:
+            response = session.get(
+                URL,
+                params={"id": FILE_ID, "confirm": token},
+                stream=True
+            )
+
+        # Save file
+        with open(WEIGHTS_PATH, "wb") as f:
+            for chunk in response.iter_content(chunk_size=32768):
+                if chunk:
+                    f.write(chunk)
+
+        size = os.path.getsize(WEIGHTS_PATH)
+        if size > EXPECTED_SIZE:
+            print(f"✅ Weights downloaded successfully ({size} bytes)")
+        else:
+            print(f"❌ Download incomplete ({size} bytes) — check sharing settings")
+            os.remove(WEIGHTS_PATH)
 
     except Exception as e:
-        print(f"⚠️ Model load warning: {e}")
+        print(f"❌ Exception: {e}")
 
-preload_models()
+
