@@ -285,6 +285,7 @@ import tempfile
 import pytz
 import base64
 import math
+import download_weights
 from streamlit_geolocation import streamlit_geolocation
 
 from main import identify_person
