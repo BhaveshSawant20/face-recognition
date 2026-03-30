@@ -503,98 +503,119 @@ def is_within_radius(user_lat, user_lon, college_lat, college_lon, radius_m):
 
 def show_popup(message, popup_type="success"):
     if popup_type == "success":
-        color = "#4CAF50"
+        btn_color = "#4CAF50"
+        btn_shadow = "rgba(76,175,80,0.45)"
         icon = "✅"
-        bg = "rgba(76, 175, 80, 0.15)"
+        title = "Success"
     elif popup_type == "error":
-        color = "#f44336"
+        btn_color = "#f44336"
+        btn_shadow = "rgba(244,67,54,0.45)"
         icon = "❌"
-        bg = "rgba(244, 67, 54, 0.15)"
+        title = "Error"
     elif popup_type == "warning":
-        color = "#FF9800"
+        btn_color = "#FF9800"
+        btn_shadow = "rgba(255,152,0,0.45)"
         icon = "⚠️"
-        bg = "rgba(255, 152, 0, 0.15)"
+        title = "Warning"
     elif popup_type == "info":
-        color = "#2196F3"
+        btn_color = "#2196F3"
+        btn_shadow = "rgba(33,150,243,0.45)"
         icon = "ℹ️"
-        bg = "rgba(33, 150, 243, 0.15)"
+        title = "Info"
     else:
-        color = "#4CAF50"
+        btn_color = "#4CAF50"
+        btn_shadow = "rgba(76,175,80,0.45)"
         icon = "✅"
-        bg = "rgba(76, 175, 80, 0.15)"
+        title = "Done"
+
+    popup_id = f"popup_{abs(hash(message)) % 100000}"
 
     st.markdown(f"""
         <style>
-        .popup-overlay {{
+        #{popup_id}_overlay {{
             position: fixed;
-            top: 0; left: 0;
-            width: 100vw; height: 100vh;
-            background: rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(4px);
-            z-index: 9999;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.55);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            z-index: 999999;
             display: flex;
             align-items: center;
             justify-content: center;
-            animation: fadeIn 0.3s ease;
         }}
-        .popup-box {{
-            background: rgba(255, 255, 255, 0.2);
-            backdrop-filter: blur(25px);
-            border: 1px solid rgba(255, 255, 255, 0.4);
-            border-radius: 20px;
-            padding: 40px 50px;
-            max-width: 420px;
-            width: 90%;
+        #{popup_id}_box {{
+            background: rgba(255, 255, 255, 0.18);
+            backdrop-filter: blur(30px) saturate(180%);
+            -webkit-backdrop-filter: blur(30px) saturate(180%);
+            border: 1.5px solid rgba(255, 255, 255, 0.55);
+            border-radius: 24px;
+            padding: 40px 48px;
+            max-width: 400px;
+            width: 90vw;
             text-align: center;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-            animation: slideUp 0.3s ease;
-            background-color: {bg};
-            border-left: 4px solid {color};
+            box-shadow:
+                0 8px 40px rgba(0, 0, 0, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.6);
+            animation: glassPopIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
         }}
-        .popup-icon {{
+        @keyframes glassPopIn {{
+            from {{ transform: scale(0.82) translateY(24px); opacity: 0; }}
+            to {{ transform: scale(1) translateY(0); opacity: 1; }}
+        }}
+        #{popup_id}_icon {{
             font-size: 52px;
+            line-height: 1;
             margin-bottom: 12px;
         }}
-        .popup-message {{
-            font-size: 17px;
-            font-weight: 600;
-            color: black !important;
-            margin-bottom: 24px;
-            line-height: 1.5;
+        #{popup_id}_title {{
+            font-size: 20px;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 8px;
+            text-shadow: 0 1px 6px rgba(0,0,0,0.35);
         }}
-        .popup-close-btn {{
-            background: {color};
-            color: white;
+        #{popup_id}_msg {{
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.88);
+            margin-bottom: 28px;
+            line-height: 1.6;
+            white-space: pre-line;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }}
+        #{popup_id}_btn {{
+            background: {btn_color};
+            color: #ffffff;
             border: none;
-            border-radius: 12px;
-            padding: 10px 32px;
+            border-radius: 14px;
+            padding: 12px 40px;
             font-size: 15px;
-            font-weight: bold;
+            font-weight: 700;
             cursor: pointer;
-            transition: all 0.2s ease;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            box-shadow: 0 4px 18px {btn_shadow};
+            letter-spacing: 0.3px;
+            transition: transform 0.15s ease, opacity 0.15s ease;
         }}
-        .popup-close-btn:hover {{
-            opacity: 0.85;
+        #{popup_id}_btn:hover {{
+            opacity: 0.88;
             transform: translateY(-2px);
         }}
-        @keyframes fadeIn {{
-            from {{ opacity: 0; }}
-            to {{ opacity: 1; }}
-        }}
-        @keyframes slideUp {{
-            from {{ transform: translateY(40px); opacity: 0; }}
-            to {{ transform: translateY(0); opacity: 1; }}
+        #{popup_id}_btn:active {{
+            transform: translateY(1px);
         }}
         </style>
 
-        <div class="popup-overlay" id="popup-overlay">
-            <div class="popup-box">
-                <div class="popup-icon">{icon}</div>
-                <div class="popup-message">{message}</div>
-                <button class="popup-close-btn" onclick="
-                    document.getElementById('popup-overlay').style.display='none';
-                ">OK</button>
+        <div id="{popup_id}_overlay">
+            <div id="{popup_id}_box">
+                <div id="{popup_id}_icon">{icon}</div>
+                <div id="{popup_id}_title">{title}</div>
+                <div id="{popup_id}_msg">{message}</div>
+                <button id="{popup_id}_btn"
+                    onclick="document.getElementById('{popup_id}_overlay').style.display='none'">
+                    OK
+                </button>
             </div>
         </div>
     """, unsafe_allow_html=True)
@@ -661,7 +682,7 @@ def add_bg_from_local(image_file):
             transition: all 0.3s ease;
         }}
 
-        /* GREEN HOVER BUTTON */
+        /* GREEN HOVER */
         div[data-testid="stButton"] > button:hover {{
             background: #4CAF50 !important;
             color: white !important;
@@ -830,7 +851,7 @@ if menu == "Mark Attendance":
             st.stop()
 
         if not location:
-            show_popup("Location is required to mark attendance!\nClick 'Get My Location' first.", "error")
+            show_popup("Location is required!\nClick 'Get My Location' first.", "error")
             st.stop()
 
         if subject is None:
@@ -844,7 +865,7 @@ if menu == "Mark Attendance":
                 float,
                 [x.strip() for x in final_location.split(",")]
             )
-        except:
+        except Exception:
             show_popup("Location format error. Please try again.", "error")
             st.stop()
 
@@ -858,7 +879,7 @@ if menu == "Mark Attendance":
             recognized_name, recognized_roll, message = identify_person(temp_path)
 
         if not recognized_name:
-            show_popup("Face not recognized! Please try again in better lighting. 💡", "error")
+            show_popup("Face not recognized!\nPlease try again in better lighting. 💡", "error")
             st.stop()
 
         if recognized_roll != roll_no_input.strip():
@@ -894,7 +915,10 @@ if menu == "Mark Attendance":
                 time_difference = (now - last_time).total_seconds() / 60
                 if time_difference < 45:
                     remaining = 45 - int(time_difference)
-                    show_popup(f"Please wait {remaining} more minutes before marking attendance again! ⏳", "warning")
+                    show_popup(
+                        f"Please wait {remaining} more minutes\nbefore marking attendance again! ⏳",
+                        "warning"
+                    )
                     st.stop()
 
         within_radius, distance = is_within_radius(
@@ -908,7 +932,10 @@ if menu == "Mark Attendance":
         distance = int(distance)
 
         if not within_radius:
-            show_popup(f"You are {distance}m away from college.\nMust be within {ALLOWED_RADIUS_METERS}m to mark attendance!", "error")
+            show_popup(
+                f"You are {distance}m away from college.\nMust be within {ALLOWED_RADIUS_METERS}m to mark attendance!",
+                "error"
+            )
             st.stop()
 
         supabase.table("attendance").insert({
@@ -921,7 +948,10 @@ if menu == "Mark Attendance":
             "location": final_location
         }).execute()
 
-        show_popup(f"Attendance marked for {recognized_name}!\nSubject: {subject} 🎉", "success")
+        show_popup(
+            f"Attendance marked for {recognized_name}!\nSubject: {subject} 🎉",
+            "success"
+        )
 
 # ===============================
 # VIEW ATTENDANCE
