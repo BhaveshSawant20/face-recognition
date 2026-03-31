@@ -125,6 +125,47 @@ def add_bg_from_local(image_file):
         div[data-testid="stButton"] > button:active {{
             transform: translateY(1px);
         }}
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        /* Sidebar text color + size */
+section[data-testid="stSidebar"] * {
+    color: black !important;
+    font-size: 18px !important;
+    font-weight: 600;
+}
+
+/* Sidebar title (Choose Mode) */
+section[data-testid="stSidebar"] label {
+    color: black !important;
+    font-size: 20px !important;
+    font-weight: 700;
+}
+
+/* Radio button labels */
+div[role="radiogroup"] label {
+    font-size: 18px !important;
+    color: black !important;
+}
+
+/* Radio button circle spacing (optional clean look) */
+div[role="radiogroup"] > label {
+    margin-bottom: 8px;
+}
+        
+        
+        
+        
 
         </style>
     """, unsafe_allow_html=True)
@@ -174,7 +215,7 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 menu = st.sidebar.radio(
     "Choose Mode",
-    ["Register Face", "Mark Attendance", "View Attendance"]
+    ["Register Face", "Mark Attendance", "View Attendance"]  #### SLIDEBAR EDIT
 )
 
 # ===============================
