@@ -167,7 +167,12 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 # SIDEBAR MENU
 # ===============================
 
-menu = st.sidebar.selectbox(
+# menu = st.sidebar.selectbox(
+#     "Choose Mode",
+#     ["Register Face", "Mark Attendance", "View Attendance"]
+# )
+
+menu = st.sidebar.radio(
     "Choose Mode",
     ["Register Face", "Mark Attendance", "View Attendance"]
 )
