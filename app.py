@@ -189,7 +189,7 @@
 #
 #     col1, col2, col3 = st.columns([1, 2, 1])
 #     with col2:
-#         register_clicked = st.button("Register Student", use_container_width=True)
+#         register_clicked = st.button("Register Student", width="stretch")
 #
 #     if register_clicked:
 #         if not full_name or not roll_no_input or not image_buffer:
@@ -249,7 +249,7 @@
 #
 #     col1, col2, col3 = st.columns([1, 2, 1])
 #     with col2:
-#         if st.button("📍 Get My Location", use_container_width=True):
+#         if st.button("📍 Get My Location", width="stretch"):
 #             st.session_state.get_location = True
 #
 #     location = None
@@ -289,7 +289,7 @@
 #
 #     col1, col2, col3 = st.columns([1, 2, 1])
 #     with col2:
-#         mark_clicked = st.button("Mark Attendance", use_container_width=True)
+#         mark_clicked = st.button("Mark Attendance", width="stretch")
 #
 #     if mark_clicked:
 #
@@ -424,7 +424,7 @@
 #         df = df.drop(columns=["marked_at", "created_at", "id"], errors="ignore")
 #
 #         st.subheader("📋 Attendance Records")
-#         st.dataframe(df, use_container_width=True)
+#         st.dataframe(df, width="stretch")
 #
 #         st.subheader("📊 Subject Wise Attendance")
 #         subject_count = df["subject"].value_counts()
@@ -722,7 +722,7 @@ if menu == "Register Face":
 
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        register_clicked = st.button("Register Student", use_container_width=True)
+        register_clicked = st.button("Register Student", width="stretch")
 
     if register_clicked:
         if not full_name or not roll_no_input or not image_buffer:
@@ -782,7 +782,7 @@ if menu == "Mark Attendance":
 
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        if st.button("📍 Get My Location", use_container_width=True):
+        if st.button("📍 Get My Location", width="stretch"):
             st.session_state.get_location = True
 
     location = None
@@ -822,7 +822,7 @@ if menu == "Mark Attendance":
 
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        mark_clicked = st.button("Mark Attendance", use_container_width=True)
+        mark_clicked = st.button("Mark Attendance", width="stretch")
 
     if mark_clicked:
 
@@ -957,7 +957,7 @@ if menu == "View Attendance":
         df = df.drop(columns=["marked_at", "created_at", "id"], errors="ignore")
 
         st.subheader("📋 Attendance Records")
-        st.dataframe(df, use_container_width=True)
+        st.dataframe(df, width="stretch")
 
         st.subheader("📊 Subject Wise Attendance")
         subject_count = df["subject"].value_counts()
